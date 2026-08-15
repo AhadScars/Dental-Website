@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Staff login · Elegancia Dental</title>
+  <link rel="icon" type="image/jpeg" href="assets/icons/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body class="login-body">
+  <div class="login-shell">
+    <section class="login-visual">
+      <img src="assets/images/hero-clinic.jpg" alt="Elegancia Dental Clinic reception" />
+      <div class="login-caption">
+        <p class="eyebrow">Staff access</p>
+        <h1>The clinic, in one quiet dashboard.</h1>
+        <p>Confirm appointments, manage chairs, and keep Dr. Tasveer Fatima’s day in order.</p>
+      </div>
+    </section>
+    <section class="login-panel">
+      <div class="login-card">
+        <a class="brand" href="index.html">
+          <img class="brand-mark" src="assets/icons/logo.jpg" alt="Elegancia Dental Clinic" />
+          <span class="brand-text">
+            <span class="brand-name">ELEGANCIA</span>
+            <span class="brand-sub">Admin</span>
+          </span>
+        </a>
+        <h2>Welcome back</h2>
+        <p class="lede" style="margin-top: 0;">Sign in to the Elegancia admin desk.</p>
+        <div class="demo-box" id="demoBox">
+          Demo login · <strong>admin@cosmic.com</strong> / <strong>cosmic123</strong>
+        </div>
+        <form id="loginForm" novalidate>
+          <div class="login-error" id="loginError"></div>
+          <div class="field" id="field-email">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" autocomplete="username" placeholder="admin@cosmic.com" />
+            <div class="field-error">Enter your admin email.</div>
+          </div>
+          <div class="field" id="field-password">
+            <label for="loginPassword">Password</label>
+            <div class="password-wrap">
+              <input type="password" id="loginPassword" autocomplete="current-password" placeholder="••••••••" />
+              <button type="button" id="togglePassword">Show</button>
+            </div>
+            <div class="field-error">Password is required.</div>
+          </div>
+          <div class="check-row">
+            <label><input type="checkbox" id="rememberMe" /> Remember this browser</label>
+            <a href="index.html">Back to site</a>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" id="loginSubmit">Sign in</button>
+        </form>
+      </div>
+    </section>
+  </div>
+  <script src="js/auth.js"></script>
+  <script>
+    (function () {
+      if (window.CosmicAuth) {
+        CosmicAuth.redirectIfAuthenticated("admin.html");
+        if (!CosmicAuth.usesDefaultPassword()) {
+          var box = document.getElementById("demoBox");
+          if (box) {
+            box.textContent = "Use the email and password you set in Settings.";
+          }
+        }
+      }
+
+      var form = document.getElementById("loginForm");
+      var errorBox = document.getElementById("loginError");
+      var toggle = document.getElementById("togglePassword");
+      var password = document.getElementById("loginPassword");
+
+      toggle.addEventListener("click", function () {
+        var hidden = password.type === "password";
+        password.type = hidden ? "text" : "password";
+        toggle.textContent = hidden ? "Hide" : "Show";
+      });
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        var email = document.getElementById("loginEmail").value.trim();
+        var pass = password.value;
+        document.getElementById("field-email").classList.toggle("error", !email);
+        document.getElementById("field-password").classList.toggle("error", !pass);
+        errorBox.classList.remove("visible");
+
+        if (!email || !pass) return;
+
+        var result = CosmicAuth.login(email, pass, document.getElementById("rememberMe").checked);
+        if (!result.ok) {
+          errorBox.textContent = result.error;
+          errorBox.classList.add("visible");
+          return;
+        }
+        window.location.href = "admin.html";
+      });
+    })();
+  </script>
+</body>
+</html>
