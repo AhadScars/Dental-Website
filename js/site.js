@@ -7,13 +7,15 @@
 
   function pageName() {
     var file = (window.location.pathname.split("/").pop() || "index.html").toLowerCase();
-    return file || "index.html";
+    if (!file || file === "/") return "index.html";
+    if (file.indexOf(".html") === -1) file += ".html";
+    return file;
   }
 
   function isActive(href, current) {
     if (href === current) return true;
-    if (href === "index.html" && (current === "" || current === "/")) return true;
-    return false;
+    if (href === "index.html" && (current === "" || current === "/" || current === "index.html")) return true;
+    return href.replace(".html", "") === current.replace(".html", "");
   }
 
   function renderHeader() {
