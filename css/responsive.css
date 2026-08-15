@@ -1,13 +1,26 @@
 /* ==========================================================================
    Elegancia Dental — Responsive rules
+   Phones, tablets, laptops, landscape, and notched devices
    ========================================================================== */
 
-@media (max-width: 1200px) {
+/* -------------------------------------------------------------------------- */
+/* Large laptops — tighten the header before it wraps                          */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 1240px) {
   .nav-link {
     padding: 8px 8px;
     font-size: 13px;
   }
+
+  .header-cta .btn {
+    display: none !important;
+  }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Small laptops / large tablets — hamburger + stacked feature grids           */
+/* -------------------------------------------------------------------------- */
 
 @media (max-width: 1100px) {
   .hero-grid,
@@ -18,9 +31,23 @@
   }
 
   .hero-card,
-  .hero-grid {
+  .hero-grid,
+  .hero-copy {
     justify-self: stretch;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    gap: 28px;
+    align-items: stretch;
+  }
+
+  .hero {
+    min-height: auto;
   }
 
   .hero-stats,
@@ -28,12 +55,14 @@
   .journey-steps,
   .testimonial-grid,
   .stat-grid,
-  .footer-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .footer-grid,
+  .treat-admin-grid,
+  .patient-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .gallery-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: 220px 220px 220px;
   }
 
@@ -62,6 +91,7 @@
     transform: translateX(-105%);
     transition: transform 0.28s var(--ease);
     box-shadow: var(--shadow);
+    padding-top: calc(24px + var(--safe-top));
   }
 
   body.sidebar-open .sidebar {
@@ -84,9 +114,7 @@
     display: block;
   }
 
-  .settings-grid,
-  .treat-admin-grid,
-  .patient-grid {
+  .settings-grid {
     grid-template-columns: 1fr;
   }
 
@@ -96,15 +124,19 @@
     left: 0;
     right: 0;
     display: none;
+    flex: none;
     flex-direction: column;
     align-items: stretch;
+    justify-content: flex-start;
     gap: 4px;
-    max-height: calc(100vh - var(--header-h));
+    max-height: calc(100dvh - var(--header-h));
     overflow-y: auto;
-    padding: 16px;
+    -webkit-overflow-scrolling: touch;
+    padding: 12px 16px calc(16px + var(--safe-bottom));
     background: rgba(255, 255, 255, 0.98);
     border-bottom: 1px solid var(--mist);
     box-shadow: var(--shadow-soft);
+    z-index: 2;
   }
 
   body.nav-open .nav {
@@ -115,9 +147,14 @@
     overflow: hidden;
   }
 
+  body.nav-open .nav-overlay {
+    display: block;
+  }
+
   .nav-link {
     padding: 14px 16px;
     font-size: 16px;
+    border-radius: 12px;
   }
 
   .menu-toggle {
@@ -126,23 +163,48 @@
   }
 
   .header-cta .btn {
-    display: none;
+    display: none !important;
+  }
+
+  .sticky-book {
+    display: flex;
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + var(--safe-bottom));
+    width: auto;
+  }
+
+  body:has(.sticky-book) {
+    padding-bottom: calc(84px + var(--safe-bottom));
+  }
+
+  body:has(.sticky-book) .hero {
+    padding-bottom: calc(36px + 72px);
+  }
+
+  .admin-body:has(.sticky-book),
+  .login-body {
+    padding-bottom: 0;
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Tablets and large phones                                                    */
+/* -------------------------------------------------------------------------- */
+
 @media (max-width: 860px) {
   :root {
-    --header-h: 72px;
+    --header-base: 72px;
   }
 
   .hero {
     min-height: auto;
-    padding: calc(var(--header-h) + 28px) 0 36px;
+    padding: calc(var(--header-h) + 24px) 0 32px;
   }
 
   .hero-grid {
     min-height: auto;
-    gap: 22px;
+    gap: 20px;
     align-items: stretch;
   }
 
@@ -152,9 +214,18 @@
   }
 
   .hero h1 {
-    font-size: clamp(34px, 10vw, 48px);
-    line-height: 1.05;
+    font-size: clamp(28px, 7.2vw, 42px);
+    line-height: 1.08;
     overflow-wrap: anywhere;
+  }
+
+  .hero-doctor {
+    font-size: 0.82em;
+    line-height: 1.12;
+  }
+
+  .hero-br {
+    display: block;
   }
 
   .hero-hindi,
@@ -164,10 +235,26 @@
   }
 
   .hero-card {
-    padding: 20px;
+    padding: 18px 16px;
   }
 
-  .hero-stats,
+  .hero-card h3 {
+    font-size: 24px;
+  }
+
+  .hero-card p {
+    margin: 8px 0 14px;
+  }
+
+  .hero-meta {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .hero-stats {
+    margin-top: 24px;
+  }
+
   .about-points,
   .why-features,
   .choice-grid,
@@ -176,20 +263,16 @@
   }
 
   .slot-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .login-visual {
-    min-height: 220px;
-    max-height: 260px;
+    min-height: 200px;
+    max-height: 240px;
   }
 
-  .sticky-book {
-    display: block;
-    left: 12px;
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
-    width: auto;
+  .login-caption h1 {
+    font-size: clamp(26px, 7vw, 36px);
   }
 
   .section {
@@ -197,7 +280,7 @@
   }
 
   .page-hero {
-    padding: calc(var(--header-h) + 32px) 0 32px;
+    padding: calc(var(--header-h) + 28px) 0 28px;
   }
 
   .page-hero h1 {
@@ -209,10 +292,34 @@
     padding: 6px 4px;
   }
 
+  .month-weekdays span {
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    padding: 8px 2px;
+  }
+
   .cal-pill {
     font-size: 10px;
   }
+
+  .contact-card,
+  .booking-panel,
+  .login-card {
+    padding: 24px 20px;
+  }
+
+  .faq-item button {
+    padding: 16px 16px;
+  }
+
+  .faq-body {
+    padding: 0 16px 16px;
+  }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Phones                                                                      */
+/* -------------------------------------------------------------------------- */
 
 @media (max-width: 700px) {
   .container,
@@ -239,17 +346,6 @@
     height: 38px;
   }
 
-  .hero-stats,
-  .treatment-grid,
-  .journey-steps,
-  .testimonial-grid,
-  .stat-grid,
-  .footer-grid,
-  .gallery-grid,
-  .hero-meta {
-    grid-template-columns: 1fr;
-  }
-
   .gallery-grid {
     grid-template-rows: none;
   }
@@ -258,36 +354,56 @@
   .gallery-item:first-child {
     grid-column: auto;
     min-height: 200px;
-    height: 200px;
+    height: 220px;
   }
 
   .about-photo img,
   .why-visual {
-    height: 280px;
-    min-height: 280px;
+    height: 260px;
+    min-height: 260px;
   }
 
-  .hero-actions,
+  .about-badge {
+    position: static;
+    max-width: none;
+    margin-top: 12px;
+  }
+
   .form-nav,
   .footer-bottom,
   .modal-actions,
   .admin-topbar,
   .panel-head,
-  .cal-toolbar {
+  .cal-toolbar,
+  .toolbar,
+  .topbar-actions {
     flex-direction: column;
     align-items: stretch;
   }
 
-  .hero-actions .btn,
+  .hero-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .hero-actions .btn {
+    flex: 1 1 140px;
+    width: auto;
+    min-width: 0;
+  }
+
   .form-nav .btn,
   .booking-panel .btn,
   .contact-card .btn,
-  .center-cta .btn {
+  .center-cta .btn,
+  .treatment-cta .btn,
+  .page-hero .btn,
+  .about-copy > .btn,
+  .topbar-actions .btn {
     width: 100%;
   }
 
-  .header-inner .menu-toggle,
-  .header-inner .btn {
+  .header-inner .menu-toggle {
     width: 44px;
     min-width: 44px;
     padding: 0;
@@ -305,10 +421,14 @@
     grid-template-columns: 1fr;
   }
 
+  .day-slot {
+    grid-template-columns: 1fr;
+  }
+
   .toast-stack {
     left: 12px;
     right: 12px;
-    bottom: 88px;
+    bottom: calc(88px + var(--safe-bottom));
   }
 
   .toast {
@@ -324,7 +444,8 @@
   .booking-panel,
   .login-card,
   .quote-card,
-  .step-card {
+  .step-card,
+  .feature-card {
     padding: 20px 16px;
   }
 
@@ -332,10 +453,6 @@
   .map-frame iframe {
     min-height: 220px;
     height: 240px;
-  }
-
-  body {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom));
   }
 
   .admin-body {
@@ -353,13 +470,29 @@
 
   .contact-row,
   .confirm-rows div,
-  .patient-cell {
+  .patient-cell,
+  .faq-item button,
+  .site-footer p,
+  .site-footer li {
     overflow-wrap: anywhere;
+  }
+
+  .confirm-rows div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+    align-items: flex-end;
   }
 
   .modal {
     width: 100%;
-    padding: 20px 16px;
+    max-height: calc(100dvh - 24px);
+    padding: 20px 16px calc(20px + var(--safe-bottom));
+    border-radius: 20px 20px 12px 12px;
   }
 
   .treatment-card p {
@@ -368,6 +501,89 @@
 
   .treatment-photo {
     height: 180px;
+  }
+
+  .search-input,
+  .filter-select,
+  .date-input,
+  .text-input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .login-panel {
+    padding: 24px 16px calc(28px + var(--safe-bottom));
+  }
+
+  .login-card {
+    padding: 24px 18px;
+  }
+
+  .login-card h2 {
+    font-size: 30px;
+  }
+
+  .check-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .appt-card-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-footer {
+    padding: 48px 0 calc(28px + var(--safe-bottom));
+  }
+
+  .site-footer p {
+    max-width: none;
+  }
+
+  .view-switch {
+    width: 100%;
+  }
+
+  .view-switch button {
+    flex: 1;
+  }
+
+  .cal-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Compact phones — single column everywhere                                   */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 560px) {
+  .hero-stats,
+  .treatment-grid,
+  .journey-steps,
+  .testimonial-grid,
+  .stat-grid,
+  .footer-grid,
+  .gallery-grid,
+  .treat-admin-grid,
+  .patient-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gallery-item,
+  .gallery-item:first-child {
+    height: 200px;
+    min-height: 200px;
+  }
+
+  .hero-stats .stat-pill {
+    padding: 14px 16px;
+  }
+
+  .choice {
+    padding: 12px;
   }
 }
 
@@ -379,7 +595,137 @@
   .hero-stats .stat-pill strong {
     font-size: 24px;
   }
+
+  .brand-sub {
+    display: none;
+  }
+
+  .hero h1 {
+    font-size: clamp(28px, 10vw, 36px);
+  }
+
+  .section {
+    padding: 48px 0;
+  }
+
+  .page-hero {
+    padding: calc(var(--header-h) + 20px) 0 22px;
+  }
+
+  .about-photo img,
+  .why-visual {
+    height: 220px;
+    min-height: 220px;
+    border-radius: 20px;
+  }
+
+  .month-day {
+    min-height: 56px;
+    padding: 4px 2px;
+  }
+
+  .month-weekdays span {
+    font-size: 9px;
+    padding: 6px 0;
+  }
+
+  .container,
+  .header-inner {
+    width: calc(100% - 20px);
+  }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Very small phones                                                           */
+/* -------------------------------------------------------------------------- */
+
+@media (max-width: 360px) {
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .hero-actions .btn {
+    width: 100%;
+    flex: none;
+  }
+
+  .brand-name {
+    font-size: 15px;
+    letter-spacing: 0.02em;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .btn {
+    padding: 0 16px;
+    min-height: 46px;
+    font-size: 13.5px;
+  }
+
+  .hero-card,
+  .contact-card,
+  .booking-panel,
+  .step-card,
+  .quote-card {
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Short landscape phones / foldables                                          */
+/* -------------------------------------------------------------------------- */
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .hero {
+    min-height: auto;
+    padding: calc(var(--header-h) + 16px) 0 20px;
+  }
+
+  .hero-grid {
+    min-height: auto;
+  }
+
+  .section {
+    padding: 40px 0;
+  }
+
+  .login-visual {
+    min-height: 140px;
+    max-height: 160px;
+  }
+
+  .login-caption h1 {
+    font-size: 24px;
+  }
+
+  .nav {
+    max-height: calc(100dvh - var(--header-h));
+  }
+
+  .modal {
+    max-height: calc(100dvh - 16px);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* High-DPI / hover-capable desktops stay as designed                          */
+/* Touch: drop hover lift so cards don't jump                                  */
+/* -------------------------------------------------------------------------- */
+
+@media (hover: none) {
+  .btn:hover,
+  .treatment-card:hover {
+    transform: none;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Reduced motion                                                              */
+/* -------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   html {

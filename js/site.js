@@ -57,7 +57,8 @@
       '<div class="header-cta">' +
       '<a class="btn btn-primary" href="book.html">Book Appointment</a>' +
       '<button class="menu-toggle" id="menuToggle" type="button" aria-label="Open menu" aria-expanded="false">' +
-      "<span></span><span></span><span></span></button></div></div>";
+      "<span></span><span></span><span></span></button></div></div>" +
+      '<div class="nav-overlay" id="navOverlay" hidden></div>';
   }
 
   function renderFooter() {
@@ -96,22 +97,38 @@
       "<span>Women-owned · LGBTQ+ friendly · Khurram Nagar, Lucknow</span></div>";
   }
 
+  function closeNav() {
+    var toggle = document.getElementById("menuToggle");
+    var overlay = document.getElementById("navOverlay");
+    document.body.classList.remove("nav-open");
+    if (toggle) toggle.setAttribute("aria-expanded", "false");
+    if (overlay) overlay.hidden = true;
+  }
+
   function bindNav() {
     var toggle = document.getElementById("menuToggle");
     var header = document.getElementById("siteHeader");
+    var overlay = document.getElementById("navOverlay");
     var closers = document.querySelectorAll(".nav-link, .header-cta a, .sticky-book");
     Array.prototype.forEach.call(closers, function (link) {
-      link.addEventListener("click", function () {
-        document.body.classList.remove("nav-open");
-        if (toggle) toggle.setAttribute("aria-expanded", "false");
-      });
+      link.addEventListener("click", closeNav);
     });
     if (toggle) {
       toggle.addEventListener("click", function () {
         var open = document.body.classList.toggle("nav-open");
         toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        if (overlay) overlay.hidden = !open;
       });
     }
+    if (overlay) {
+      overlay.addEventListener("click", closeNav);
+    }
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") closeNav();
+    });
+    window.addEventListener("resize", function () {
+      if (window.innerWidth > 1100) closeNav();
+    });
     window.addEventListener("scroll", function () {
       if (!header) return;
       header.classList.toggle("scrolled", window.scrollY > 12);
