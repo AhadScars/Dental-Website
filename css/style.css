@@ -1197,6 +1197,11 @@ body.nav-open .menu-toggle span:nth-child(3) {
 /* Booking                                                                     */
 /* -------------------------------------------------------------------------- */
 
+.booking-panel,
+.step-panel.active {
+  scroll-margin-top: calc(var(--header-h) + 16px);
+}
+
 .booking-steps {
   display: flex;
   gap: 8px;
@@ -1506,6 +1511,62 @@ body.nav-open .menu-toggle span:nth-child(3) {
   padding-bottom: var(--safe-bottom);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 13px;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sticky WhatsApp + Call                                                      */
+/* -------------------------------------------------------------------------- */
+
+.sticky-actions {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + var(--safe-bottom));
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.sticky-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 16px 0 12px;
+  border-radius: 999px;
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(18, 32, 44, 0.18);
+  transition: transform 0.25s var(--ease), box-shadow 0.25s ease;
+}
+
+.sticky-action:hover {
+  transform: translateY(-1px);
+  color: var(--white);
+}
+
+.sticky-action svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.sticky-whatsapp {
+  background: #1f9d4c;
+}
+
+.sticky-whatsapp:hover {
+  background: #188740;
+}
+
+.sticky-call {
+  background: var(--navy);
+}
+
+.sticky-call:hover {
+  background: var(--navy-mid);
 }
 
 /* -------------------------------------------------------------------------- */

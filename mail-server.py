@@ -115,10 +115,18 @@ def build_email(data: dict, clinic_from: str) -> MIMEMultipart:
 
 def send_gmail(data: dict) -> None:
     cfg = load_config()
-    if not configured(cfg):
+    sender = (
+        (data.get("smtpUser") or data.get("adminEmail") or "").strip()
+        or cfg.get("email")
+        or ""
+    )
+    password = (
+        (data.get("smtpPass") or data.get("appPassword") or "").replace(" ", "")
+        or cfg.get("appPassword")
+        or ""
+    )
+    if not sender or not password:
         raise RuntimeError("Save the clinic Gmail and App Password in Admin → Settings first.")
-    sender = cfg["email"]
-    password = cfg["appPassword"]
     msg = build_email(data, sender)
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30) as server:

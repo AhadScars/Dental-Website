@@ -410,7 +410,12 @@
   .toast-stack {
     left: 12px;
     right: 12px;
-    bottom: calc(16px + var(--safe-bottom));
+    bottom: calc(132px + var(--safe-bottom));
+  }
+
+  .sticky-actions {
+    right: 12px;
+    bottom: calc(12px + var(--safe-bottom));
   }
 
   .toast {
@@ -570,6 +575,21 @@
 }
 
 @media (max-width: 420px) {
+  .sticky-action {
+    width: 50px;
+    min-height: 50px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .sticky-action span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
   .header-cta .btn {
     font-size: 0;
     padding: 0 14px;

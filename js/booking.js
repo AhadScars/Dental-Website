@@ -31,7 +31,21 @@
     if (window.CosmicUI) CosmicUI.showToast(message, type);
   }
 
-  function setStep(step) {
+  function scrollToBooking(focusId) {
+    var panel = document.getElementById("book") || form;
+    var header = document.getElementById("siteHeader");
+    var offset = (header ? header.offsetHeight : 80) + 16;
+    var top = panel.getBoundingClientRect().top + window.pageYOffset - offset;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    if (focusId) {
+      setTimeout(function () {
+        var field = document.getElementById(focusId);
+        if (field && typeof field.focus === "function") field.focus({ preventScroll: true });
+      }, 350);
+    }
+  }
+
+  function setStep(step, focusId) {
     state.step = step;
     var panels = form.querySelectorAll(".step-panel");
     Array.prototype.forEach.call(panels, function (panel) {
@@ -43,6 +57,7 @@
       bar.classList.toggle("active", n === step);
       bar.classList.toggle("done", n < step);
     });
+    scrollToBooking(focusId);
   }
 
   function clearError(fieldId) {
@@ -81,7 +96,7 @@
     if (preselect) selectTreatment(preselect);
   }
 
-  function selectTreatment(id) {
+  function selectTreatment(id, advance) {
     state.treatmentId = id;
     document.getElementById("treatmentId").value = id;
     var buttons = treatmentChoices.querySelectorAll(".choice");
@@ -89,6 +104,7 @@
       btn.classList.toggle("selected", btn.getAttribute("data-id") === id);
     });
     clearError("field-treatment");
+    if (advance) setStep(2, "appointmentDate");
   }
 
   function initDatePicker() {
@@ -149,6 +165,7 @@
       chip.classList.toggle("selected", chip.getAttribute("data-time") === time);
     });
     clearError("field-time");
+    if (state.treatmentId && dateInput.value) setStep(3, "patientName");
   }
 
   function validPhone(value) {
@@ -246,6 +263,7 @@
         return "<div><span>" + row[0] + "</span>" + value + "</div>";
       })
       .join("");
+    scrollToBooking();
   }
 
   function capitalize(value) {
@@ -270,7 +288,7 @@
   treatmentChoices.addEventListener("click", function (event) {
     var button = event.target.closest(".choice");
     if (!button) return;
-    selectTreatment(button.getAttribute("data-id"));
+    selectTreatment(button.getAttribute("data-id"), true);
   });
 
   slotGrid.addEventListener("click", function (event) {
@@ -288,7 +306,10 @@
     var next = event.target.getAttribute("data-next");
     var prev = event.target.getAttribute("data-prev");
     if (next) {
-      if (validateStep(state.step)) setStep(Number(next));
+      if (validateStep(state.step)) {
+        var dest = Number(next);
+        setStep(dest, dest === 2 ? "appointmentDate" : dest === 3 ? "patientName" : "");
+      }
     }
     if (prev) setStep(Number(prev));
   });

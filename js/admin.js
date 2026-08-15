@@ -494,7 +494,7 @@
       var help = $("smtpHelp");
       if (help) {
         help.textContent =
-          "Enter the clinic Gmail and 16-character App Password, then Save. New bookings are emailed through smtp.gmail.com.";
+          "Enter the clinic Gmail and 16-character App Password, then Save. This stores the password on the server so visitor bookings can send email. On Vercel, also set GMAIL_USER and GMAIL_APP_PASSWORD in Project Settings.";
       }
       if (status.configured) {
         box.textContent = "Gmail SMTP is ready · smtp.gmail.com:465 · " + (status.email || "saved");
@@ -799,15 +799,28 @@
         toast("Enter the 16-character Gmail App Password.", "error");
         return;
       }
-      CosmicDB.updateSettings({
-        adminNotifyEmail: email,
-        smtpAppPassword: password
-          ? password.replace(/\s+/g, "")
-          : CosmicDB.getSettings().smtpAppPassword || "",
-      });
-      $("setAppPassword").value = "";
-      toast("Gmail SMTP saved. You can send a test email now.");
-      refreshSmtpStatus();
+      var saveBtn = $("saveSmtpBtn");
+      if (saveBtn) saveBtn.disabled = true;
+      CosmicMail.saveSmtpConfig(
+        email,
+        password ? password.replace(/\s+/g, "") : CosmicDB.getSettings().smtpAppPassword || ""
+      )
+        .then(function (saved) {
+          if (saveBtn) saveBtn.disabled = false;
+          $("setAppPassword").value = "";
+          if (saved && saved.ok === false) {
+            toast(saved.error || "Could not save Gmail SMTP on the server.", "error");
+            refreshSmtpStatus();
+            return;
+          }
+          toast("Gmail SMTP saved. New bookings will email the clinic.");
+          refreshSmtpStatus();
+        })
+        .catch(function (err) {
+          if (saveBtn) saveBtn.disabled = false;
+          toast((err && err.message) || "Could not save Gmail SMTP on the server.", "error");
+          refreshSmtpStatus();
+        });
     });
 
     $("testEmailBtn").addEventListener("click", function () {

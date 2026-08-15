@@ -30,13 +30,19 @@
   }
 
   function saveSmtpConfig(email, appPassword) {
-    if (!window.CosmicDB) {
-      return Promise.reject(new Error("Storage is not available."));
+    if (window.CosmicDB) {
+      var next = { adminNotifyEmail: String(email || "").trim() };
+      if (appPassword) next.smtpAppPassword = String(appPassword).replace(/\s+/g, "");
+      CosmicDB.updateSettings(next);
     }
-    var next = { adminNotifyEmail: String(email || "").trim() };
-    if (appPassword) next.smtpAppPassword = String(appPassword).replace(/\s+/g, "");
-    CosmicDB.updateSettings(next);
-    return Promise.resolve({ ok: true });
+    return request("/api/smtp-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: String(email || "").trim(),
+        appPassword: String(appPassword || "").replace(/\s+/g, ""),
+      }),
+    });
   }
 
   function getStatus() {

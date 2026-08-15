@@ -135,7 +135,29 @@
     });
   }
 
+  function renderStickyActions() {
+    if (document.querySelector(".sticky-actions")) return;
+    var message = encodeURIComponent(
+      "Hello Elegancia Dental, I would like to book an appointment."
+    );
+    var bar = document.createElement("div");
+    bar.className = "sticky-actions";
+    bar.setAttribute("role", "navigation");
+    bar.setAttribute("aria-label", "Book by WhatsApp or phone");
+    bar.innerHTML =
+      '<a class="sticky-action sticky-whatsapp" href="https://wa.me/917234001111?text=' +
+      message +
+      '" target="_blank" rel="noopener" aria-label="Book on WhatsApp">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20 11.5A8.5 8.5 0 0 1 7.4 18.7L4 20l1.4-3.3A8.5 8.5 0 1 1 20 11.5zm-8.5 7a7 7 0 1 0-5.9-3.3l.2.3-.8 1.9 2-.8.3.2a7 7 0 0 0 4.2 1.4zm4-5.2c-.2-.1-1.2-.6-1.4-.7-.2-.1-.3-.1-.5.1l-.4.5c-.1.1-.3.2-.5.1s-1-.4-1.9-1.2-.8-1.5-.9-1.7.0-.4.1-.5l.3-.4c.1-.1.1-.2.2-.4s0-.3 0-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 1.9s.8 2.2.9 2.3c.1.2 1.6 2.5 3.9 3.5 1.4.6 1.9.6 2.6.5.4-.1 1.2-.5 1.4-1 .2-.5.2-.9.1-1 0-.1-.2-.1-.4-.2z"/></svg>' +
+      "<span>WhatsApp</span></a>" +
+      '<a class="sticky-action sticky-call" href="tel:07234001111" aria-label="Call to book an appointment">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7.5 3.8c.3-.3.8-.4 1.2-.2l2.1 1c.4.2.7.6.7 1.1l-.2 2.1c0 .3-.2.6-.5.8l-1 .7c.8 1.6 2.1 2.9 3.7 3.7l.7-1c.2-.3.5-.5.8-.5l2.1-.2c.5 0 .9.3 1.1.7l1 2.1c.2.4.1.9-.2 1.2l-1.2 1.2c-.4.4-1 .6-1.6.5C10.4 16.8 7.2 13.6 6.8 8.6c-.1-.6.1-1.2.5-1.6L7.5 3.8z"/></svg>' +
+      "<span>Call</span></a>";
+    document.body.appendChild(bar);
+  }
+
   renderHeader();
   renderFooter();
+  renderStickyActions();
   bindNav();
 })();
