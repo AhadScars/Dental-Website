@@ -491,16 +491,19 @@
     var box = $("smtpStatus");
     if (!box || !window.CosmicMail) return;
     CosmicMail.getStatus().then(function (status) {
-      if (!status.running) {
-        box.textContent = "Mail server is not running. Start start-email.bat and open http://127.0.0.1:8787";
-        return;
+      var help = $("smtpHelp");
+      if (help) {
+        help.textContent =
+          "Enter the clinic Gmail and 16-character App Password, then Save. New bookings are emailed through smtp.gmail.com.";
       }
       if (status.configured) {
         box.textContent = "Gmail SMTP is ready · smtp.gmail.com:465 · " + (status.email || "saved");
-        if (status.email && !$("setNotifyEmail").value) $("setNotifyEmail").value = status.email;
+        if (status.email && $("setNotifyEmail") && !$("setNotifyEmail").value) {
+          $("setNotifyEmail").value = status.email;
+        }
         return;
       }
-      box.textContent = "Mail server is running. Save the Gmail address and App Password below.";
+      box.textContent = "Save the Gmail address and App Password below, then send a test email.";
     });
   }
 
@@ -788,20 +791,23 @@
       event.preventDefault();
       var email = $("setNotifyEmail").value.trim();
       var password = $("setAppPassword").value.trim();
-      CosmicDB.updateSettings({ adminNotifyEmail: email });
-      if (!window.CosmicMail) {
-        toast("Email module is missing.", "error");
+      if (!email || email.indexOf("@") === -1) {
+        toast("Enter the clinic Gmail address.", "error");
         return;
       }
-      CosmicMail.saveSmtpConfig(email, password)
-        .then(function () {
-          $("setAppPassword").value = "";
-          toast("Gmail SMTP saved on this computer.");
-          refreshSmtpStatus();
-        })
-        .catch(function (err) {
-          toast((err && err.message) || "Could not reach the mail server. Start start-email.bat.", "error");
-        });
+      if (!password && !((CosmicDB.getSettings().smtpAppPassword) || "")) {
+        toast("Enter the 16-character Gmail App Password.", "error");
+        return;
+      }
+      CosmicDB.updateSettings({
+        adminNotifyEmail: email,
+        smtpAppPassword: password
+          ? password.replace(/\s+/g, "")
+          : CosmicDB.getSettings().smtpAppPassword || "",
+      });
+      $("setAppPassword").value = "";
+      toast("Gmail SMTP saved. You can send a test email now.");
+      refreshSmtpStatus();
     });
 
     $("testEmailBtn").addEventListener("click", function () {

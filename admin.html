@@ -230,8 +230,8 @@
             <form id="emailForm" class="password-panel">
               <h3>Gmail SMTP</h3>
               <p class="muted" id="smtpStatus">Checking mail server…</p>
-              <p class="muted">Run <strong>start-email.bat</strong> (or <code>python mail-server.py</code>) and open the site at <strong>http://127.0.0.1:8787</strong>. The App Password is saved on this computer only — not in the webpage.</p>
-              <div class="settings-grid">
+              <p class="muted" id="smtpHelp">Enter the clinic Gmail and 16-character App Password, then Save. New bookings are emailed through smtp.gmail.com.</p>
+              <div class="settings-grid" id="smtpLocalFields">
                 <div class="field">
                   <label for="setNotifyEmail">Gmail address</label>
                   <input id="setNotifyEmail" type="email" placeholder="yourclinic@gmail.com" autocomplete="username" />
@@ -242,7 +242,7 @@
                 </div>
               </div>
               <div class="action-row" style="margin-top:8px">
-                <button class="btn btn-primary" type="submit">Save Gmail SMTP</button>
+                <button class="btn btn-primary" id="saveSmtpBtn" type="submit">Save Gmail SMTP</button>
                 <button class="btn btn-outline" id="testEmailBtn" type="button">Send test email</button>
               </div>
             </form>
@@ -355,10 +355,10 @@
 
   <div class="toast-stack" id="toastStack"></div>
 
-  <script src="js/storage.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/email.js"></script>
-  <script src="js/calendar.js"></script>
-  <script src="js/admin.js"></script>
+  <script src="js/storage.js?v=4"></script>
+  <script src="js/auth.js?v=4"></script>
+  <script src="js/mailer.js?v=4"></script>
+  <script src="js/calendar.js?v=4"></script>
+  <script src="js/admin.js?v=4"></script>
 </body>
 </html>

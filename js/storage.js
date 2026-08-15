@@ -66,6 +66,7 @@
     defaultTimes: DEFAULT_TIMES.slice(),
     slotDuration: 30,
     adminNotifyEmail: "",
+    smtpAppPassword: "",
     emailProvider: "none",
     emailjsPublicKey: "",
     emailjsServiceId: "",
