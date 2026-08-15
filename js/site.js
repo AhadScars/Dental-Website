@@ -109,7 +109,7 @@
     var toggle = document.getElementById("menuToggle");
     var header = document.getElementById("siteHeader");
     var overlay = document.getElementById("navOverlay");
-    var closers = document.querySelectorAll(".nav-link, .header-cta a, .sticky-book");
+    var closers = document.querySelectorAll(".nav-link, .header-cta a");
     Array.prototype.forEach.call(closers, function (link) {
       link.addEventListener("click", closeNav);
     });

@@ -14,7 +14,7 @@
   }
 
   .header-cta .btn {
-    display: none !important;
+    padding: 0 16px;
   }
 }
 
@@ -160,31 +160,6 @@
   .menu-toggle {
     display: flex;
     flex-shrink: 0;
-  }
-
-  .header-cta .btn {
-    display: none !important;
-  }
-
-  .sticky-book {
-    display: flex;
-    left: 12px;
-    right: 12px;
-    bottom: calc(12px + var(--safe-bottom));
-    width: auto;
-  }
-
-  body:has(.sticky-book) {
-    padding-bottom: calc(84px + var(--safe-bottom));
-  }
-
-  body:has(.sticky-book) .hero {
-    padding-bottom: calc(36px + 72px);
-  }
-
-  .admin-body:has(.sticky-book),
-  .login-body {
-    padding-bottom: 0;
   }
 }
 
@@ -409,6 +384,13 @@
     padding: 0;
   }
 
+  .header-cta .btn {
+    padding: 0 12px;
+    min-height: 40px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
   .table-wrap {
     display: none;
   }
@@ -428,7 +410,7 @@
   .toast-stack {
     left: 12px;
     right: 12px;
-    bottom: calc(88px + var(--safe-bottom));
+    bottom: calc(16px + var(--safe-bottom));
   }
 
   .toast {
@@ -588,6 +570,16 @@
 }
 
 @media (max-width: 420px) {
+  .header-cta .btn {
+    font-size: 0;
+    padding: 0 14px;
+  }
+
+  .header-cta .btn::after {
+    content: "Book";
+    font-size: 13px;
+  }
+
   .slot-grid {
     grid-template-columns: 1fr;
   }
