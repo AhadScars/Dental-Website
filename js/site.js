@@ -46,6 +46,11 @@
       .join("");
 
     header.innerHTML =
+      '<div class="topbar"><div class="topbar-inner">' +
+      '<a href="tel:07234001111">072340 01111</a>' +
+      "<span>Mon–Sat 10:00 AM – 9:30 PM · Sun 10:30 AM – 4:00 PM</span>" +
+      '<a href="https://maps.app.goo.gl/KaGd79G24jRSyYL19" target="_blank" rel="noopener">Khurram Nagar, Lucknow</a>' +
+      "</div></div>" +
       '<div class="header-inner">' +
       '<a class="brand" href="index.html" aria-label="Elegancia Dental">' +
       '<img class="brand-mark" src="assets/icons/logo.jpg" alt="Elegancia Dental Clinic" />' +
@@ -71,7 +76,12 @@
       '<img class="brand-mark" src="assets/icons/logo.jpg" alt="Elegancia Dental Clinic" />' +
       '<span class="brand-text"><span class="brand-name">ELEGANCIA</span>' +
       '<span class="brand-sub">Dental Clinic</span></span></a>' +
-      "<p>Elegancia Dental, Implant &amp; Maxillofacial Centre — best dentist in Lucknow. Founded by Dr. Tasveer Fatima, MDS Oral &amp; Maxillofacial Surgeon.</p></div>" +
+      "<p>Specialist implant and maxillofacial care with calm family dentistry in Khurram Nagar. Founded by Dr. Tasveer Fatima, BDS MDS.</p>" +
+      '<div class="footer-contact-row">' +
+      '<a href="tel:07234001111">Call clinic</a>' +
+      '<a href="https://wa.me/917234001111" target="_blank" rel="noopener">WhatsApp</a>' +
+      '<a href="book.html">Book online</a>' +
+      "</div></div>" +
       "<div><h4>Visit</h4><ul>" +
       '<li><a href="about.html">About the clinic</a></li>' +
       '<li><a href="treatments.html">Treatments</a></li>' +

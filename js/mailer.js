@@ -1,6 +1,6 @@
 /**
- * Elegancia Dental — Vercel Gmail SMTP client
- * Always calls same-origin /api. Never uses localhost or mail-server.py.
+ * Elegancia Dental — Gmail SMTP client
+ * Hostinger uses /mail.php. Local python server still accepts /api/mail.
  */
 (function (global) {
   "use strict";
@@ -19,12 +19,12 @@
       body = text ? JSON.parse(text) : {};
     } catch (err) {
       var hint;
-      if (res.status === 404) {
+      if (res.status === 404 || res.status === 403) {
         hint = "NOT_FOUND";
       } else if (res.status === 502 || res.status === 504) {
-        hint = "Vercel timed out reaching Gmail. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel → Settings → Environment Variables, then redeploy.";
+        hint = "The mail server timed out reaching Gmail. Save the App Password again in Admin → Settings.";
       } else {
-        hint = "Mail API failed (HTTP " + res.status + "). On Vercel set GMAIL_USER and GMAIL_APP_PASSWORD, then redeploy.";
+        hint = "Mail API failed (HTTP " + res.status + "). Upload mail.php to Hostinger public_html and try again.";
       }
       throw new Error(hint);
     }
@@ -48,12 +48,12 @@
 
   function requestMail(route, payload) {
     var data = Object.assign({ route: route }, payload || {});
-    return postJson("/api/mail", data).catch(function (err) {
+    return postJson("/mail.php", data).catch(function (err) {
       if (!err || err.message !== "NOT_FOUND") throw err;
-      return postJson("/api", data).catch(function (err2) {
+      return postJson("/api/mail", data).catch(function (err2) {
         if (!err2 || err2.message !== "NOT_FOUND") throw err2;
         throw new Error(
-          "Mail API was not found on Vercel. Redeploy the folder that contains api/mail.js and package.json. Then open /api/mail in the browser — it should show JSON, not a 404 page."
+          "Mail API was not found. Upload mail.php to your Hostinger public_html folder, then open /mail.php in the browser — it should show JSON."
         );
       });
     });

@@ -1,12 +1,9 @@
 /**
  * COSMIC Dental Clinic — Storage Layer
  * --------------------------------------------------------------------------
- * Simulates a backend using localStorage. Every appointment, treatment,
- * time-slot, and clinic setting lives here so the public site and admin
- * panel stay in sync after a refresh.
- *
- * This module is deliberately backend-shaped: a later API can replace the
- * localStorage reads/writes without changing the function signatures.
+ * Local cache for treatments, slots, and settings. Appointments also sync
+ * to Hostinger MySQL through appointments.php so the admin dashboard sees
+ * bookings made on other phones.
  */
 (function (global) {
   "use strict";
@@ -67,6 +64,7 @@
     slotDuration: 30,
     adminNotifyEmail: "",
     smtpAppPassword: "",
+    dashboardKey: "elg-7f3a9c2e4b81d06f5a12c8e9b4d7f0a3",
     blockedPhones: [],
     noShowCounts: {},
     emailProvider: "none",
@@ -261,6 +259,9 @@
       return clone(DEFAULT_SETTINGS);
     }
     var merged = Object.assign({}, DEFAULT_SETTINGS, stored);
+    if (!String(merged.dashboardKey || "").trim()) {
+      merged.dashboardKey = DEFAULT_SETTINGS.dashboardKey;
+    }
     if (!merged.defaultTimes || !merged.defaultTimes.length) {
       merged.defaultTimes = DEFAULT_TIMES.slice();
     }
@@ -1016,73 +1017,206 @@
   }
 
   function resetDemoData() {
+    var key = String((getSettings().dashboardKey || "")).trim();
     localStorage.removeItem(KEYS.APPOINTMENTS);
     localStorage.removeItem(KEYS.TREATMENTS);
     localStorage.removeItem(KEYS.SLOTS);
     localStorage.removeItem(KEYS.SETTINGS);
     localStorage.removeItem(KEYS.SEEDED);
     seedIfNeeded();
+    if (key) updateSettings({ dashboardKey: key });
   }
 
-  function mergeAppointments(remote) {
-    var local = getAppointments();
-    var map = {};
-    local.forEach(function (item) {
-      if (item && item.id) map[item.id] = item;
+  /* ------------------------------------------------------------------ */
+  /* Hostinger MySQL                                                     */
+  /* ------------------------------------------------------------------ */
+
+  var APPOINTMENTS_URL = "/appointments.php";
+
+  function appointmentTimestamp(item) {
+    var value = item && item.updatedAt ? Date.parse(item.updatedAt) : 0;
+    return isNaN(value) ? 0 : value;
+  }
+
+  function pickNewerAppointment(local, remote) {
+    if (!local) return Object.assign({ fromServer: true }, remote);
+    if (!remote) return local;
+    var newer = appointmentTimestamp(remote) >= appointmentTimestamp(local) ? remote : local;
+    return Object.assign({}, local, remote, newer, { fromServer: true, id: local.id || remote.id });
+  }
+
+  function mergeRemoteAppointments(remote) {
+    var remoteList = Array.isArray(remote) ? remote : [];
+    var remoteById = {};
+    remoteList.forEach(function (item) {
+      if (item && item.id) remoteById[item.id] = item;
     });
-    (remote || []).forEach(function (item) {
+
+    var next = [];
+    var seen = {};
+    getAppointments().forEach(function (item) {
       if (!item || !item.id) return;
-      var current = map[item.id];
-      if (!current || String(item.updatedAt || "") >= String(current.updatedAt || "")) {
-        map[item.id] = item;
+      if (remoteById[item.id]) {
+        next.push(pickNewerAppointment(item, remoteById[item.id]));
+        seen[item.id] = true;
+        return;
+      }
+      if (item.internal || !item.fromServer) next.push(item);
+    });
+    remoteList.forEach(function (item) {
+      if (item && item.id && !seen[item.id]) {
+        next.push(Object.assign({ fromServer: true }, item));
       }
     });
-    var next = Object.keys(map).map(function (key) {
-      return map[key];
-    });
+
     saveAppointments(next);
     next.forEach(function (item) {
-      if (!isClosedStatus(item.status)) {
+      if (isClosedStatus(item.status)) {
+        if (!isSlotTaken(item.date, item.time, item.id)) releaseSlot(item.date, item.time);
+      } else {
         markSlotBooked(item.date, item.time, item.id);
       }
     });
     return next;
   }
 
-  function pullServerAppointments() {
-    return fetch("/api/mail?list=appointments")
+  function applyTakenSlots(date, times) {
+    (times || []).forEach(function (entry) {
+      var time = typeof entry === "string" ? entry : entry && entry.time;
+      if (!time) return;
+      markSlotBooked(date, time, entry && entry.id ? entry.id : null);
+    });
+  }
+
+  function postAppointments(payload) {
+    return fetch(APPOINTMENTS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {}),
+    }).then(function (res) {
+      return res.text().then(function (text) {
+        var data = null;
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch (err) {
+          data = null;
+        }
+        if (res.status === 404) {
+          var missing = new Error("NOT_FOUND");
+          missing.status = 404;
+          throw missing;
+        }
+        if (!res.ok) {
+          var fail = new Error((data && data.error) || "Appointments API failed (HTTP " + res.status + ").");
+          fail.status = res.status;
+          fail.payload = data;
+          throw fail;
+        }
+        return data || { ok: false };
+      });
+    });
+  }
+
+  function getServerStatus() {
+    return fetch(APPOINTMENTS_URL, { method: "GET", cache: "no-store" })
       .then(function (res) {
+        if (res.status === 404) return { ok: false, configured: false, missing: true };
         return res.json().catch(function () {
-          return { ok: false };
+          return { ok: false, configured: false };
         });
       })
-      .then(function (body) {
-        if (!body || !body.ok || !Array.isArray(body.appointments)) {
-          return { ok: false, appointments: getAppointments() };
-        }
-        return { ok: true, appointments: mergeAppointments(body.appointments), store: body.store };
-      })
       .catch(function () {
-        return { ok: false, appointments: getAppointments() };
+        return { ok: false, configured: false };
+      });
+  }
+
+  function pullTakenSlots(date) {
+    if (!date) return Promise.resolve({ ok: false, skipped: true });
+    return postAppointments({ route: "taken", date: date })
+      .then(function (data) {
+        if (data && data.ok) applyTakenSlots(date, data.times || []);
+        return data || { ok: false };
+      })
+      .catch(function (err) {
+        if (err && err.message === "NOT_FOUND") return { ok: false, skipped: true };
+        return { ok: false, error: (err && err.message) || "Could not load booked slots." };
+      });
+  }
+
+  function checkServerGuard(phone) {
+    return postAppointments({ route: "guard", phone: phone })
+      .then(function (data) {
+        return data || { ok: true };
+      })
+      .catch(function (err) {
+        if (err && (err.message === "NOT_FOUND" || (err.payload && err.payload.configured === false))) {
+          return { ok: true, skipped: true };
+        }
+        return { ok: false, error: (err && err.message) || "Could not check this number." };
       });
   }
 
   function pushServerAppointment(appointment) {
-    if (!appointment || !appointment.id) {
-      return Promise.resolve({ ok: false, error: "Missing appointment." });
-    }
-    return fetch("/api/mail", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ route: "appointments", op: "upsert", appointment: appointment }),
-    })
-      .then(function (res) {
-        return res.json().catch(function () {
-          return { ok: false, error: "Could not sync this booking to the clinic dashboard." };
-        });
+    if (!appointment || appointment.internal) return Promise.resolve({ ok: true, skipped: true });
+    return postAppointments({ route: "create", appointment: appointment })
+      .then(function (data) {
+        if (data && data.ok && data.appointment) {
+          var current = getAppointmentById(appointment.id) || appointment;
+          updateAppointment(appointment.id, Object.assign({}, data.appointment, { fromServer: true }));
+          return { ok: true, appointment: getAppointmentById(appointment.id) || current };
+        }
+        return data || { ok: false, error: "Could not save the booking on the server." };
       })
-      .catch(function () {
-        return { ok: false, error: "Could not sync this booking to the clinic dashboard." };
+      .catch(function (err) {
+        if (err && err.message === "NOT_FOUND") return { ok: false, skipped: true };
+        if (err && err.payload && err.payload.configured === false) return { ok: false, skipped: true };
+        return { ok: false, error: (err && err.message) || "Could not save the booking on the server." };
+      });
+  }
+
+  function pullServerAppointments() {
+    var key = String((getSettings().dashboardKey || "")).trim();
+    if (!key) return Promise.resolve({ ok: false, skipped: true, needsKey: true });
+    return postAppointments({ route: "list", dashboardKey: key })
+      .then(function (data) {
+        if (data && data.ok && Array.isArray(data.appointments)) {
+          mergeRemoteAppointments(data.appointments);
+          return { ok: true, appointments: data.appointments };
+        }
+        return data || { ok: false };
+      })
+      .catch(function (err) {
+        if (err && err.message === "NOT_FOUND") return { ok: false, skipped: true };
+        return { ok: false, error: (err && err.message) || "Could not load clinic bookings." };
+      });
+  }
+
+  function syncServerAppointment(appointment) {
+    var key = String((getSettings().dashboardKey || "")).trim();
+    if (!key || !appointment || appointment.internal) return Promise.resolve({ ok: true, skipped: true });
+    return postAppointments({ route: "update", dashboardKey: key, appointment: appointment })
+      .then(function (data) {
+        if (data && data.ok && data.appointment) {
+          updateAppointment(appointment.id, Object.assign({}, data.appointment, { fromServer: true }));
+        }
+        return data || { ok: false };
+      })
+      .catch(function (err) {
+        if (err && err.message === "NOT_FOUND") return { ok: false, skipped: true };
+        return { ok: false, error: (err && err.message) || "Could not update the clinic database." };
+      });
+  }
+
+  function deleteServerAppointment(id) {
+    var key = String((getSettings().dashboardKey || "")).trim();
+    if (!key || !id) return Promise.resolve({ ok: true, skipped: true });
+    return postAppointments({ route: "delete", dashboardKey: key, id: id })
+      .then(function (data) {
+        return data || { ok: false };
+      })
+      .catch(function (err) {
+        if (err && err.message === "NOT_FOUND") return { ok: false, skipped: true };
+        return { ok: false, error: (err && err.message) || "Could not delete from the clinic database." };
       });
   }
 
@@ -1126,9 +1260,6 @@
     minutesToTime: minutesToTime,
     normalizeTime: normalizeTime,
     resetDemoData: resetDemoData,
-    pullServerAppointments: pullServerAppointments,
-    pushServerAppointment: pushServerAppointment,
-    mergeAppointments: mergeAppointments,
     normalizePhone: normalizePhone,
     isPhoneBlocked: isPhoneBlocked,
     blockPhone: blockPhone,
@@ -1137,5 +1268,12 @@
     markPhoneVerified: markPhoneVerified,
     isPhoneVerified: isPhoneVerified,
     markNoShow: markNoShow,
+    getServerStatus: getServerStatus,
+    pullTakenSlots: pullTakenSlots,
+    checkServerGuard: checkServerGuard,
+    pushServerAppointment: pushServerAppointment,
+    pullServerAppointments: pullServerAppointments,
+    syncServerAppointment: syncServerAppointment,
+    deleteServerAppointment: deleteServerAppointment,
   };
 })(window);

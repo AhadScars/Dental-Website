@@ -1,5 +1,5 @@
 smtp-config.json
-data/appointments.json
+config.php
 node_modules/
 .env
 .vercel

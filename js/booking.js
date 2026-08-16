@@ -119,10 +119,7 @@
     renderSlots(dateInput.value);
   }
 
-  function renderSlots(date) {
-    state.date = date;
-    state.time = "";
-    document.getElementById("appointmentTime").value = "";
+  function paintSlots(date) {
     var slots = CosmicDB.getSlotsForDate(date);
     var day = new Date(date + "T00:00:00").getDay();
     if (day === 0) {
@@ -157,6 +154,18 @@
         );
       })
       .join("");
+  }
+
+  function renderSlots(date) {
+    state.date = date;
+    state.time = "";
+    document.getElementById("appointmentTime").value = "";
+    paintSlots(date);
+    if (!CosmicDB.pullTakenSlots) return;
+    CosmicDB.pullTakenSlots(date).then(function () {
+      if (state.date !== date) return;
+      paintSlots(date);
+    });
   }
 
   function selectTime(time) {
@@ -332,7 +341,10 @@
       sendBtn.textContent = "Sending code…";
     }
     if (resend) resend.disabled = true;
-    CosmicMail.requestOtp(bookingDraft()).then(function (mail) {
+
+    var draft = bookingDraft();
+    var proceed = function () {
+      CosmicMail.requestOtp(draft).then(function (mail) {
       if (sendBtn) {
         sendBtn.disabled = false;
         sendBtn.textContent = "Send verification code";
@@ -348,6 +360,24 @@
         "We sent a 6-digit code to " + state.otpSentTo + ". It expires in 10 minutes.";
       toast("Verification code sent to your email.");
       if (done) done();
+    });
+    };
+
+    if (!CosmicDB.checkServerGuard) {
+      proceed();
+      return;
+    }
+    CosmicDB.checkServerGuard(draft.phone).then(function (guard) {
+      if (guard && guard.ok === false && !guard.skipped) {
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          sendBtn.textContent = "Send verification code";
+        }
+        if (resend) resend.disabled = false;
+        toast(guard.error || "This number cannot book right now.", "error");
+        return;
+      }
+      proceed();
     });
   }
 
@@ -445,35 +475,52 @@
         time: state.time,
       });
 
-      submit.disabled = false;
-      submit.textContent = "Verify & book";
-
       if (!result.ok) {
+        submit.disabled = false;
+        submit.textContent = "Verify & book";
         toast(result.error || "Unable to complete booking.", "error");
         renderSlots(dateInput.value);
         if (/already|pending|blocked|cannot book/i.test(result.error || "")) setStep(3, "patientPhone");
         return;
       }
 
-      showConfirmation(result.appointment);
-      toast("Appointment requested successfully.");
+      var finishBooked = function (appointment) {
+        submit.disabled = false;
+        submit.textContent = "Verify & book";
+        showConfirmation(appointment);
+        toast("Appointment requested successfully.");
+        CosmicMail.sendBookingEmail(appointment).then(function (mail) {
+          if (mail.ok) toast("Notification sent to the clinic Gmail.");
+          else toast(mail.error || "Booked, but the Gmail notification failed.", "error");
+        });
+      };
 
-      CosmicDB.pushServerAppointment(result.appointment).then(function (sync) {
-        if (!sync.ok) toast(sync.error || "Booked, but the clinic dashboard did not sync yet.", "error");
-      });
+      if (!CosmicDB.pushServerAppointment) {
+        finishBooked(result.appointment);
+        return;
+      }
 
-      CosmicMail.sendBookingEmail(result.appointment).then(function (mail) {
-        if (mail.ok) toast("Notification sent to the clinic Gmail.");
-        else toast(mail.error || "Booked, but the Gmail notification failed.", "error");
+      CosmicDB.pushServerAppointment(result.appointment).then(function (saved) {
+        if (saved && saved.skipped) {
+          finishBooked(result.appointment);
+          return;
+        }
+        if (!saved || !saved.ok) {
+          CosmicDB.deleteAppointment(result.appointment.id);
+          submit.disabled = false;
+          submit.textContent = "Verify & book";
+          toast(saved && saved.error ? saved.error : "Could not complete this booking. Please try again or call the clinic.", "error");
+          renderSlots(dateInput.value);
+          if (/already|pending|blocked|cannot book/i.test((saved && saved.error) || "")) setStep(3, "patientPhone");
+          return;
+        }
+        finishBooked(saved.appointment || result.appointment);
       });
     });
   });
 
   document.getElementById("bookAnother").addEventListener("click", resetBooking);
 
-  CosmicDB.pullServerAppointments().then(function () {
-    renderSlots(dateInput.value);
-  });
   renderTreatmentChoices();
   initDatePicker();
 

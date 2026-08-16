@@ -170,6 +170,16 @@
 @media (max-width: 860px) {
   :root {
     --header-base: 72px;
+    --topbar-h: 0px;
+  }
+
+  .topbar {
+    display: none;
+  }
+
+  .cta-band-inner {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .hero {

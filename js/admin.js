@@ -22,6 +22,16 @@
     settings: ["Settings", "Clinic identity used across the public site."],
   };
 
+  function afterLocalChange(result) {
+    if (!result || !result.ok || !result.appointment || !CosmicDB.syncServerAppointment) {
+      refreshCurrent();
+      return;
+    }
+    CosmicDB.syncServerAppointment(result.appointment).then(function () {
+      refreshCurrent();
+    });
+  }
+
   function $(id) {
     return document.getElementById(id);
   }
@@ -300,12 +310,16 @@
       if (result.ok) {
         toast("Appointment confirmed successfully.");
         notifyPatient("confirmed", result.appointment);
+        afterLocalChange(result);
+        return;
       }
     } else if (action === "reject") {
       result = CosmicDB.changeAppointmentStatus(id, "rejected");
       if (result.ok) {
         toast("Appointment rejected.");
         notifyPatient("rejected", result.appointment);
+        afterLocalChange(result);
+        return;
       }
     } else if (action === "complete") {
       result = CosmicDB.changeAppointmentStatus(id, "completed");
@@ -335,10 +349,8 @@
       return;
     }
     if (result && !result.ok) toast(result.error || "Unable to update appointment.", "error");
-    if (result && result.ok && result.appointment) {
-      CosmicDB.pushServerAppointment(result.appointment);
-    }
-    refreshCurrent();
+    if (result && result.ok && result.appointment) afterLocalChange(result);
+    else refreshCurrent();
   }
 
   /* ------------------------------------------------------------------ */
@@ -533,7 +545,7 @@
       var help = $("smtpHelp");
       if (help) {
         help.textContent =
-          "Gmail will reject your normal password. Turn on 2-Step Verification, open myaccount.google.com/apppasswords, create an App Password named Elegancia, and paste the 16 letters here. On Vercel also set GMAIL_USER and GMAIL_APP_PASSWORD.";
+          "Gmail will reject your normal password. Turn on 2-Step Verification, open myaccount.google.com/apppasswords, create an App Password named Elegancia, and paste the 16 letters here.";
       }
       if (status.configured) {
         box.textContent = "Gmail SMTP is ready · smtp.gmail.com:465 · " + (status.email || "saved");
@@ -771,7 +783,8 @@
 
     $("confirmDelete").addEventListener("click", function () {
       if (!pendingDeleteId) return;
-      var result = CosmicDB.deleteAppointment(pendingDeleteId);
+      var id = pendingDeleteId;
+      var result = CosmicDB.deleteAppointment(id);
       pendingDeleteId = null;
       closeModals();
       if (!result.ok) {
@@ -779,6 +792,12 @@
         return;
       }
       toast("Appointment deleted.");
+      if (CosmicDB.deleteServerAppointment) {
+        CosmicDB.deleteServerAppointment(id).then(function () {
+          refreshCurrent();
+        });
+        return;
+      }
       refreshCurrent();
     });
 
@@ -799,9 +818,8 @@
       }
       closeModals();
       toast("Appointment rescheduled.");
-      CosmicDB.pushServerAppointment(result.appointment);
       notifyPatient("rescheduled", result.appointment);
-      refreshCurrent();
+      afterLocalChange(result);
     });
 
     $("addTreatmentBtn").addEventListener("click", function () {
@@ -955,10 +973,12 @@
     });
 
     CosmicCalendar.bind();
-    CosmicDB.pullServerAppointments().then(function (sync) {
-      showView("dashboard");
-      if (sync && sync.ok) toast("Dashboard synced with online bookings.");
-    });
+    showView("dashboard");
+    if (CosmicDB.pullServerAppointments) {
+      CosmicDB.pullServerAppointments().then(function (pulled) {
+        if (pulled && pulled.ok) refreshCurrent();
+      });
+    }
   }
 
   bind();

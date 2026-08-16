@@ -29,7 +29,6 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = ROOT / "smtp-config.json"
-APPOINTMENTS_PATH = ROOT / "data" / "appointments.json"
 HOST = "127.0.0.1"
 PORT = 8787
 SMTP_HOST = "smtp.gmail.com"
@@ -54,42 +53,6 @@ def save_config(data: dict) -> dict:
     payload = {"email": email, "appPassword": password}
     CONFIG_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
-
-
-def load_appointments() -> list:
-    if not APPOINTMENTS_PATH.exists():
-        return []
-    try:
-        data = json.loads(APPOINTMENTS_PATH.read_text(encoding="utf-8"))
-        return data if isinstance(data, list) else []
-    except (OSError, json.JSONDecodeError):
-        return []
-
-
-def save_appointments(items: list) -> None:
-    APPOINTMENTS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    APPOINTMENTS_PATH.write_text(json.dumps(items, indent=2), encoding="utf-8")
-
-
-def upsert_appointment(appointment: dict) -> dict:
-    items = load_appointments()
-    found = False
-    next_items = []
-    for item in items:
-        if item.get("id") == appointment.get("id"):
-            merged = dict(item)
-            merged.update(appointment)
-            next_items.append(merged)
-            found = True
-        else:
-            next_items.append(item)
-    if not found:
-        next_items.append(appointment)
-    save_appointments(next_items)
-    for item in next_items:
-        if item.get("id") == appointment.get("id"):
-            return item
-    return appointment
 
 
 def configured(cfg: dict | None = None) -> bool:
@@ -227,21 +190,6 @@ def send_gmail(data: dict) -> None:
     )
     if not sender or not password:
         raise RuntimeError("Save the clinic Gmail and App Password in Admin → Settings first.")
-    if data.get("id") and data.get("patientName"):
-        upsert_appointment(
-            {
-                "id": data.get("id"),
-                "patientName": data.get("patientName"),
-                "phone": data.get("phone"),
-                "email": data.get("email") or data.get("to"),
-                "message": data.get("message"),
-                "treatmentName": data.get("treatmentName"),
-                "date": data.get("date"),
-                "time": data.get("time"),
-                "doctor": data.get("doctor"),
-                "status": data.get("status") or "pending",
-            }
-        )
     action = (data.get("action") or "").lower()
     patient_to = (data.get("to") or data.get("patientEmail") or "").strip()
     if (
@@ -366,9 +314,6 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         if path in ("/api/smtp-status", "/api/mail", "/api/health", "/api"):
-            if "list=appointments" in (urlparse(self.path).query or ""):
-                self._json(200, {"ok": True, "appointments": load_appointments(), "store": "file"})
-                return
             cfg = load_config()
             self._json(
                 200,
@@ -398,15 +343,6 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         route = (data.get("route") or "").lower()
-        if path in ("/api/mail", "/api") and route == "appointments":
-            op = (data.get("op") or "list").lower()
-            if op == "list":
-                self._json(200, {"ok": True, "appointments": load_appointments(), "store": "file"})
-                return
-            appt = data.get("appointment") or data
-            saved = upsert_appointment(appt)
-            self._json(200, {"ok": True, "appointment": saved, "store": "file"})
-            return
         if path in ("/api/mail", "/api"):
             if route == "otp":
                 path = "/api/booking-otp"
