@@ -1,9 +1,8 @@
 /**
  * COSMIC Dental Clinic — Storage Layer
  * --------------------------------------------------------------------------
- * Local cache for treatments, slots, and settings. Appointments also sync
- * to Hostinger MySQL through appointments.php so the admin dashboard sees
- * bookings made on other phones.
+ * Local cache for treatments, slots, and settings. Appointments also save
+ * to Hostinger MySQL through appointments.php so every device sees them.
  */
 (function (global) {
   "use strict";
@@ -1033,6 +1032,10 @@
 
   var APPOINTMENTS_URL = "/appointments.php";
 
+  function getDashboardKey() {
+    return String((getSettings().dashboardKey || DEFAULT_SETTINGS.dashboardKey || "")).trim();
+  }
+
   function appointmentTimestamp(item) {
     var value = item && item.updatedAt ? Date.parse(item.updatedAt) : 0;
     return isNaN(value) ? 0 : value;
@@ -1175,8 +1178,8 @@
   }
 
   function pullServerAppointments() {
-    var key = String((getSettings().dashboardKey || "")).trim();
-    if (!key) return Promise.resolve({ ok: false, skipped: true, needsKey: true });
+    var key = getDashboardKey();
+    if (!key) return Promise.resolve({ ok: false, skipped: true });
     return postAppointments({ route: "list", dashboardKey: key })
       .then(function (data) {
         if (data && data.ok && Array.isArray(data.appointments)) {
@@ -1192,7 +1195,7 @@
   }
 
   function syncServerAppointment(appointment) {
-    var key = String((getSettings().dashboardKey || "")).trim();
+    var key = getDashboardKey();
     if (!key || !appointment || appointment.internal) return Promise.resolve({ ok: true, skipped: true });
     return postAppointments({ route: "update", dashboardKey: key, appointment: appointment })
       .then(function (data) {
@@ -1203,12 +1206,12 @@
       })
       .catch(function (err) {
         if (err && err.message === "NOT_FOUND") return { ok: false, skipped: true };
-        return { ok: false, error: (err && err.message) || "Could not update the clinic database." };
+        return { ok: false, error: (err && err.message) || "Could not update the booking." };
       });
   }
 
   function deleteServerAppointment(id) {
-    var key = String((getSettings().dashboardKey || "")).trim();
+    var key = getDashboardKey();
     if (!key || !id) return Promise.resolve({ ok: true, skipped: true });
     return postAppointments({ route: "delete", dashboardKey: key, id: id })
       .then(function (data) {
@@ -1216,7 +1219,7 @@
       })
       .catch(function (err) {
         if (err && err.message === "NOT_FOUND") return { ok: false, skipped: true };
-        return { ok: false, error: (err && err.message) || "Could not delete from the clinic database." };
+        return { ok: false, error: (err && err.message) || "Could not delete the booking." };
       });
   }
 

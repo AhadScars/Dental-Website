@@ -584,6 +584,8 @@ body.nav-open .menu-toggle span:nth-child(3) {
 .center-cta {
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-top: 32px;
 }
 
@@ -1765,6 +1767,119 @@ body.nav-open .menu-toggle span:nth-child(3) {
 .btn-danger {
   background: var(--cancelled);
   color: var(--white);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Extra page content                                                          */
+/* -------------------------------------------------------------------------- */
+
+.content-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.note-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.note-list li {
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--white);
+  border: 1px solid var(--mist);
+}
+
+.note-list strong {
+  display: block;
+  color: var(--navy);
+  font-size: 15px;
+}
+
+.note-list span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.facility-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.facility-card {
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid var(--mist);
+  background: var(--white);
+}
+
+.facility-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.facility-card div {
+  padding: 16px 18px 20px;
+}
+
+.facility-card h3 {
+  color: var(--navy);
+  font-size: 17px;
+}
+
+.facility-card p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.gallery-more {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 220px;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.gallery-more .gallery-item:first-child {
+  grid-row: auto;
+}
+
+.rating-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.rating-summary article {
+  flex: 1 1 180px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: var(--white);
+  border: 1px solid var(--mist);
+}
+
+.rating-summary strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 32px;
+  color: var(--navy);
+}
+
+.rating-summary span {
+  color: var(--muted);
+  font-size: 14px;
 }
 
 .nav-overlay {

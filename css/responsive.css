@@ -243,8 +243,14 @@
   .about-points,
   .why-features,
   .choice-grid,
-  .login-shell {
+  .login-shell,
+  .content-split {
     grid-template-columns: 1fr;
+  }
+
+  .facility-grid,
+  .gallery-more {
+    grid-template-columns: 1fr 1fr;
   }
 
   .slot-grid {
@@ -329,6 +335,11 @@
   .brand-mark {
     width: 38px;
     height: 38px;
+  }
+
+  .facility-grid,
+  .gallery-more {
+    grid-template-columns: 1fr;
   }
 
   .gallery-grid {

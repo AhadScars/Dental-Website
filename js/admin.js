@@ -542,19 +542,30 @@
     var box = $("smtpStatus");
     if (!box || !window.CosmicMail) return;
     CosmicMail.getStatus().then(function (status) {
-      var help = $("smtpHelp");
-      if (help) {
-        help.textContent =
-          "Gmail will reject your normal password. Turn on 2-Step Verification, open myaccount.google.com/apppasswords, create an App Password named Elegancia, and paste the 16 letters here.";
-      }
       if (status.configured) {
-        box.textContent = "Gmail SMTP is ready · smtp.gmail.com:465 · " + (status.email || "saved");
+        box.textContent = "Connected" + (status.email ? " · " + status.email : "");
         if (status.email && $("setNotifyEmail") && !$("setNotifyEmail").value) {
           $("setNotifyEmail").value = status.email;
         }
         return;
       }
-      box.textContent = "Save the Gmail address and App Password below, then send a test email.";
+      box.textContent = "Not connected";
+    });
+  }
+
+  function refreshDbStatus() {
+    var box = $("dbStatus");
+    if (!box || !CosmicDB.getServerStatus) return;
+    CosmicDB.getServerStatus().then(function (status) {
+      if (status.missing || !status.configured || status.connected === false) {
+        box.textContent = "Not connected";
+        return;
+      }
+      if (!status.keyReady || !(CosmicDB.getSettings().dashboardKey || "").trim()) {
+        box.textContent = "Key required";
+        return;
+      }
+      box.textContent = "Connected";
     });
   }
 
@@ -569,7 +580,9 @@
     $("setSunday").value = settings.hoursSunday;
     $("setNotifyEmail").value = settings.adminNotifyEmail || "";
     $("setAppPassword").value = "";
+    if ($("setDashboardKey")) $("setDashboardKey").value = settings.dashboardKey || "";
     refreshSmtpStatus();
+    refreshDbStatus();
     renderBlockedList();
   }
 
@@ -881,11 +894,11 @@
         return;
       }
       if (password && !/^[a-zA-Z0-9]{16}$/.test(password)) {
-        toast("Paste the 16-character App Password from Google, not your normal Gmail password.", "error");
+        toast("Enter a valid App Password.", "error");
         return;
       }
       if (!password && !((CosmicDB.getSettings().smtpAppPassword) || "")) {
-        toast("Enter the 16-character Gmail App Password.", "error");
+        toast("Enter the App Password.", "error");
         return;
       }
       var saveBtn = $("saveSmtpBtn");
@@ -972,13 +985,52 @@
       renderBlockedList();
     });
 
-    CosmicCalendar.bind();
-    showView("dashboard");
-    if (CosmicDB.pullServerAppointments) {
-      CosmicDB.pullServerAppointments().then(function (pulled) {
-        if (pulled && pulled.ok) refreshCurrent();
+    if ($("dbForm")) {
+      $("dbForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var key = ($("setDashboardKey").value || "").trim();
+        CosmicDB.updateSettings({ dashboardKey: key });
+        if (!key) {
+          toast("Enter the dashboard key.", "error");
+          refreshDbStatus();
+          return;
+        }
+        CosmicDB.pullServerAppointments().then(function (pulled) {
+          if (pulled && pulled.ok) toast("Clinic database connected. Bookings from other phones will appear here.");
+          else syncNote(pulled, "Saved the key, but could not load bookings yet.");
+          refreshDbStatus();
+          refreshCurrent();
+        });
       });
     }
+
+    if ($("syncDbBtn")) {
+      $("syncDbBtn").addEventListener("click", function () {
+        loadRemoteBookings(true);
+      });
+    }
+
+    CosmicCalendar.bind();
+    showView("dashboard");
+    loadRemoteBookings(false);
+  }
+
+  function syncNote(result, fallback) {
+    if (!result || result.skipped || result.needsKey) return;
+    if (result.ok === false && result.error) toast(result.error, "error");
+    else if (result.ok === false) toast(fallback || "Clinic database update failed.", "error");
+  }
+
+  function loadRemoteBookings(manual) {
+    if (!CosmicDB.pullServerAppointments) return;
+    CosmicDB.pullServerAppointments().then(function (pulled) {
+      if (pulled && pulled.ok) {
+        if (manual) toast("Bookings refreshed from the clinic database.");
+        refreshCurrent();
+        return;
+      }
+      if (manual) syncNote(pulled, "Could not refresh bookings from the clinic database.");
+    });
   }
 
   bind();
