@@ -737,6 +737,19 @@
   gap: 16px;
 }
 
+.smtp-steps {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.smtp-steps a {
+  color: var(--navy);
+  text-decoration: underline;
+}
+
 .danger-zone {
   margin-top: 20px;
   padding: 18px;

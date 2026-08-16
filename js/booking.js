@@ -13,6 +13,8 @@
     treatmentId: "",
     date: "",
     time: "",
+    challenge: "",
+    otpSentTo: "",
   };
 
   var treatmentChoices = document.getElementById("treatmentChoices");
@@ -219,7 +221,26 @@
         showError("field-email");
         ok3 = false;
       }
+      if (!document.getElementById("attendPledge").checked) {
+        showError("field-pledge");
+        ok3 = false;
+      }
+      if (ok3) {
+        var guard = CosmicDB.bookingGuard(phone);
+        if (!guard.ok) {
+          toast(guard.error, "error");
+          ok3 = false;
+        }
+      }
       return ok3;
+    }
+    if (step === 4) {
+      var code = document.getElementById("otpCode").value.replace(/\D/g, "");
+      if (code.length !== 6) {
+        showError("field-otp");
+        return false;
+      }
+      return true;
     }
     return true;
   }
@@ -267,11 +288,12 @@
   }
 
   function capitalize(value) {
+    if (value === "noshow") return "No-show";
     return String(value).charAt(0).toUpperCase() + String(value).slice(1);
   }
 
   function resetBooking() {
-    state = { step: 1, treatmentId: "", date: CosmicDB.todayIso(), time: "" };
+    state = { step: 1, treatmentId: "", date: CosmicDB.todayIso(), time: "", challenge: "", otpSentTo: "" };
     form.reset();
     form.style.display = "block";
     document.querySelector(".booking-steps").style.display = "flex";
@@ -279,10 +301,54 @@
     confirmCard.classList.remove("visible");
     document.getElementById("treatmentId").value = "";
     document.getElementById("appointmentTime").value = "";
-    ["field-treatment", "field-date", "field-time", "field-name", "field-phone", "field-email"].forEach(clearError);
+    document.getElementById("otpCode").value = "";
+    ["field-treatment", "field-date", "field-time", "field-name", "field-phone", "field-email", "field-pledge", "field-otp"].forEach(clearError);
     renderTreatmentChoices();
     initDatePicker();
     setStep(1);
+  }
+
+  function bookingDraft() {
+    var treatment = CosmicDB.getTreatmentById(state.treatmentId);
+    return {
+      patientName: document.getElementById("patientName").value.trim(),
+      phone: document.getElementById("patientPhone").value.trim(),
+      email: document.getElementById("patientEmail").value.trim(),
+      treatmentName: treatment ? treatment.name : "Appointment",
+      date: dateInput.value,
+      time: state.time,
+    };
+  }
+
+  function sendVerification(done) {
+    if (!window.CosmicMail || !CosmicMail.requestOtp) {
+      toast("Verification is unavailable. Please call the clinic.", "error");
+      return;
+    }
+    var sendBtn = document.getElementById("sendCodeBtn");
+    var resend = document.getElementById("resendOtp");
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Sending code…";
+    }
+    if (resend) resend.disabled = true;
+    CosmicMail.requestOtp(bookingDraft()).then(function (mail) {
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Send verification code";
+      }
+      if (resend) resend.disabled = false;
+      if (!mail.ok) {
+        toast(mail.error || "Could not send the verification code.", "error");
+        return;
+      }
+      state.challenge = mail.challenge;
+      state.otpSentTo = bookingDraft().email;
+      document.getElementById("otpHint").textContent =
+        "We sent a 6-digit code to " + state.otpSentTo + ". It expires in 10 minutes.";
+      toast("Verification code sent to your email.");
+      if (done) done();
+    });
   }
 
   treatmentChoices.addEventListener("click", function (event) {
@@ -303,15 +369,22 @@
   });
 
   form.addEventListener("click", function (event) {
-    var next = event.target.getAttribute("data-next");
-    var prev = event.target.getAttribute("data-prev");
+    var nextBtn = event.target.closest("[data-next]");
+    var prevBtn = event.target.closest("[data-prev]");
+    var next = nextBtn && nextBtn.getAttribute("data-next");
+    var prev = prevBtn && prevBtn.getAttribute("data-prev");
     if (next) {
-      if (validateStep(state.step)) {
-        var dest = Number(next);
-        setStep(dest, dest === 2 ? "appointmentDate" : dest === 3 ? "patientName" : "");
+      if (!validateStep(state.step)) return;
+      var dest = Number(next);
+      if (dest === 4) {
+        sendVerification(function () {
+          setStep(4, "otpCode");
+        });
+        return;
       }
+      setStep(dest, dest === 2 ? "appointmentDate" : dest === 3 ? "patientName" : "");
     }
-    if (prev) setStep(Number(prev));
+    if (prev) setStep(Number(prev), prev === "3" ? "patientName" : prev === "2" ? "appointmentDate" : "");
   });
 
   ["patientName", "patientPhone", "patientEmail"].forEach(function (id) {
@@ -322,43 +395,74 @@
       if (id === "patientEmail") clearError("field-email");
     });
   });
+  document.getElementById("attendPledge").addEventListener("change", function () {
+    clearError("field-pledge");
+  });
+  document.getElementById("otpCode").addEventListener("input", function () {
+    this.value = this.value.replace(/\D/g, "").slice(0, 6);
+    clearError("field-otp");
+  });
+  document.getElementById("resendOtp").addEventListener("click", function () {
+    sendVerification();
+  });
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();
-    if (!validateStep(3)) return;
-
-    var submit = document.getElementById("submitBooking");
-    submit.disabled = true;
-    submit.textContent = "Reserving…";
-
-    var result = CosmicDB.createAppointment({
-      patientName: document.getElementById("patientName").value,
-      phone: document.getElementById("patientPhone").value,
-      email: document.getElementById("patientEmail").value,
-      message: document.getElementById("patientMessage").value,
-      treatmentId: state.treatmentId,
-      date: dateInput.value,
-      time: state.time,
-    });
-
-    submit.disabled = false;
-    submit.textContent = "Confirm booking";
-
-    if (!result.ok) {
-      toast(result.error || "Unable to complete booking.", "error");
-      renderSlots(dateInput.value);
+    if (!validateStep(4)) return;
+    if (!state.challenge) {
+      toast("Request a verification code first.", "error");
+      setStep(3, "patientEmail");
       return;
     }
 
-    showConfirmation(result.appointment);
-    toast("Appointment requested successfully.");
+    var submit = document.getElementById("submitBooking");
+    submit.disabled = true;
+    submit.textContent = "Verifying…";
 
-    if (window.CosmicMail) {
+    var draft = bookingDraft();
+    CosmicMail.verifyOtp({
+      email: draft.email,
+      phone: draft.phone,
+      code: document.getElementById("otpCode").value,
+      challenge: state.challenge,
+    }).then(function (verified) {
+      if (!verified.ok) {
+        submit.disabled = false;
+        submit.textContent = "Verify & book";
+        showError("field-otp");
+        toast(verified.error || "That code is not valid.", "error");
+        return;
+      }
+
+      submit.textContent = "Reserving…";
+      var result = CosmicDB.createAppointment({
+        patientName: draft.patientName,
+        phone: draft.phone,
+        email: draft.email,
+        message: document.getElementById("patientMessage").value,
+        treatmentId: state.treatmentId,
+        date: dateInput.value,
+        time: state.time,
+      });
+
+      submit.disabled = false;
+      submit.textContent = "Verify & book";
+
+      if (!result.ok) {
+        toast(result.error || "Unable to complete booking.", "error");
+        renderSlots(dateInput.value);
+        if (/already|pending|blocked|cannot book/i.test(result.error || "")) setStep(3, "patientPhone");
+        return;
+      }
+
+      showConfirmation(result.appointment);
+      toast("Appointment requested successfully.");
+
       CosmicMail.sendBookingEmail(result.appointment).then(function (mail) {
         if (mail.ok) toast("Notification sent to the clinic Gmail.");
         else toast(mail.error || "Booked, but the Gmail notification failed.", "error");
       });
-    }
+    });
   });
 
   document.getElementById("bookAnother").addEventListener("click", resetBooking);

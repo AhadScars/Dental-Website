@@ -19,7 +19,7 @@
       <div class="container">
         <p class="eyebrow">Book appointment</p>
         <h1>Reserve a chair with Dr. Tasveer Fatima</h1>
-        <p class="lede">Pick a treatment, a date, and an open slot. New bookings stay Pending until the clinic confirms.</p>
+        <p class="lede">Pick a treatment, a date, and an open slot. We email a one-time code so only a real patient can hold the chair. The clinic then confirms.</p>
       </div>
     </section>
     <section class="section contact">
@@ -29,6 +29,7 @@
             <span class="active" data-bar="1"></span>
             <span data-bar="2"></span>
             <span data-bar="3"></span>
+            <span data-bar="4"></span>
           </div>
 
           <form id="bookingForm" novalidate>
@@ -83,9 +84,30 @@
                 <label for="patientMessage">Message <span class="muted">(optional)</span></label>
                 <textarea id="patientMessage" name="message" placeholder="Anything we should know before you arrive?"></textarea>
               </div>
+              <div class="field" id="field-pledge">
+                <label class="pledge">
+                  <input type="checkbox" id="attendPledge" />
+                  <span>I will attend this appointment. If I cannot come, I will cancel or call the clinic.</span>
+                </label>
+                <div class="field-error">Please confirm you will attend.</div>
+              </div>
               <div class="form-nav">
                 <button class="btn btn-outline" type="button" data-prev="2">Back</button>
-                <button class="btn btn-cyan" type="submit" id="submitBooking">Confirm booking</button>
+                <button class="btn btn-cyan" type="button" id="sendCodeBtn" data-next="4">Send verification code</button>
+              </div>
+            </div>
+
+            <div class="step-panel" data-step="4">
+              <div class="field" id="field-otp">
+                <label for="otpCode">Email verification code</label>
+                <p class="muted" id="otpHint">We sent a 6-digit code to your email. Enter it to hold this slot.</p>
+                <input class="otp-input" type="text" id="otpCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" />
+                <div class="field-error">Enter the 6-digit code from your email.</div>
+              </div>
+              <div class="form-nav">
+                <button class="btn btn-outline" type="button" data-prev="3">Back</button>
+                <button class="btn btn-outline" type="button" id="resendOtp">Resend code</button>
+                <button class="btn btn-cyan" type="submit" id="submitBooking">Verify &amp; book</button>
               </div>
             </div>
           </form>
@@ -93,7 +115,7 @@
           <div class="confirm-card" id="bookingConfirm" hidden>
             <div class="confirm-mark">✓</div>
             <h3>You are reserved.</h3>
-            <p>Your request is with the clinic. We will confirm shortly.</p>
+            <p>Your request is with the clinic. Please arrive on time — repeated no-shows can block online booking.</p>
             <div class="confirm-rows" id="confirmRows"></div>
             <button class="btn btn-primary" type="button" id="bookAnother">Book another visit</button>
           </div>
@@ -103,10 +125,10 @@
   </main>
   <footer class="site-footer" id="siteFooter"></footer>
   <div class="toast-stack" id="toastStack"></div>
-  <script src="js/storage.js?v=5"></script>
-  <script src="js/mailer.js?v=5"></script>
-  <script src="js/site.js?v=5"></script>
-  <script src="js/app.js?v=5"></script>
-  <script src="js/booking.js?v=5"></script>
+  <script src="js/storage.js?v=6"></script>
+  <script src="js/mailer.js?v=6"></script>
+  <script src="js/site.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
+  <script src="js/booking.js?v=6"></script>
 </body>
 </html>

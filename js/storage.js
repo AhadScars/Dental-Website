@@ -67,6 +67,8 @@
     slotDuration: 30,
     adminNotifyEmail: "",
     smtpAppPassword: "",
+    blockedPhones: [],
+    noShowCounts: {},
     emailProvider: "none",
     emailjsPublicKey: "",
     emailjsServiceId: "",
@@ -262,6 +264,8 @@
     if (!merged.defaultTimes || !merged.defaultTimes.length) {
       merged.defaultTimes = DEFAULT_TIMES.slice();
     }
+    if (!Array.isArray(merged.blockedPhones)) merged.blockedPhones = [];
+    if (!merged.noShowCounts || typeof merged.noShowCounts !== "object") merged.noShowCounts = {};
     return merged;
   }
 
@@ -566,13 +570,107 @@
     return id;
   }
 
+  function normalizePhone(phone) {
+    var digits = String(phone || "").replace(/\D/g, "");
+    if (digits.length > 10) digits = digits.slice(-10);
+    return digits;
+  }
+
+  function isClosedStatus(status) {
+    return status === "cancelled" || status === "rejected" || status === "noshow";
+  }
+
+  function isPhoneBlocked(phone) {
+    var key = normalizePhone(phone);
+    if (!key) return false;
+    return getSettings().blockedPhones.indexOf(key) !== -1;
+  }
+
+  function blockPhone(phone) {
+    var key = normalizePhone(phone);
+    if (!key) return { ok: false, error: "Enter a valid phone number." };
+    var settings = getSettings();
+    var list = settings.blockedPhones.slice();
+    if (list.indexOf(key) === -1) list.push(key);
+    updateSettings({ blockedPhones: list });
+    return { ok: true, phone: key };
+  }
+
+  function unblockPhone(phone) {
+    var key = normalizePhone(phone);
+    var settings = getSettings();
+    updateSettings({
+      blockedPhones: settings.blockedPhones.filter(function (item) {
+        return item !== key;
+      }),
+    });
+    return { ok: true, phone: key };
+  }
+
+  function markPhoneVerified(phone, email) {
+    try {
+      sessionStorage.setItem(
+        "cosmicVerified",
+        JSON.stringify({
+          phone: normalizePhone(phone),
+          email: normalizeEmail(email),
+          until: Date.now() + 15 * 60 * 1000,
+        })
+      );
+    } catch (err) {
+      /* ignore */
+    }
+  }
+
+  function isPhoneVerified(phone, email) {
+    try {
+      var raw = sessionStorage.getItem("cosmicVerified");
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      if (!data || Date.now() > Number(data.until || 0)) return false;
+      return data.phone === normalizePhone(phone) && data.email === normalizeEmail(email);
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function bookingGuard(phone) {
+    var key = normalizePhone(phone);
+    if (!key) return { ok: false, error: "Enter a valid 10-digit phone number." };
+    if (isPhoneBlocked(key)) {
+      return {
+        ok: false,
+        error: "This number cannot book online. Please call the clinic.",
+      };
+    }
+    var open = getAppointments().filter(function (item) {
+      return normalizePhone(item.phone) === key && (item.status === "pending" || item.status === "confirmed");
+    });
+    var pending = open.filter(function (item) {
+      return item.status === "pending";
+    });
+    if (pending.length >= 1) {
+      return {
+        ok: false,
+        error: "This number already has a pending request. Wait for the clinic to confirm or call 072340 01111.",
+      };
+    }
+    if (open.length >= 2) {
+      return {
+        ok: false,
+        error: "This number already has two open appointments. Please attend or cancel one first.",
+      };
+    }
+    return { ok: true };
+  }
+
   function isSlotTaken(date, time, ignoreId) {
     var wanted = normalizeTime(time);
     return getAppointments().some(function (item) {
       if (ignoreId && item.id === ignoreId) return false;
       if (item.date !== date) return false;
       if (normalizeTime(item.time) !== wanted) return false;
-      return item.status !== "cancelled" && item.status !== "rejected";
+      return !isClosedStatus(item.status);
     });
   }
 
@@ -602,6 +700,14 @@
     if (!appointment.date) return { ok: false, error: "Please select a date." };
     if (!appointment.time) return { ok: false, error: "Please select a time slot." };
 
+    if (!payload.internal) {
+      if (!isPhoneVerified(appointment.phone, appointment.email)) {
+        return { ok: false, error: "Please verify the code sent to your email first." };
+      }
+      var guard = bookingGuard(appointment.phone);
+      if (!guard.ok) return guard;
+    }
+
     if (isSlotTaken(appointment.date, appointment.time)) {
       return {
         ok: false,
@@ -617,7 +723,7 @@
     var list = getAppointments();
     list.push(appointment);
     saveAppointments(list);
-    if (appointment.status !== "cancelled" && appointment.status !== "rejected") {
+    if (!isClosedStatus(appointment.status)) {
       markSlotBooked(appointment.date, appointment.time, appointment.id);
     }
     return { ok: true, appointment: clone(appointment) };
@@ -643,13 +749,9 @@
     var result = updateAppointment(id, { status: status });
     if (!result.ok) return result;
 
-    if (status === "cancelled" || status === "rejected") {
+    if (isClosedStatus(status)) {
       releaseSlot(current.date, current.time);
-    } else if (
-      (current.status === "cancelled" || current.status === "rejected") &&
-      status !== "cancelled" &&
-      status !== "rejected"
-    ) {
+    } else if (isClosedStatus(current.status) && !isClosedStatus(status)) {
       if (isSlotTaken(current.date, current.time, id)) {
         updateAppointment(id, { status: current.status });
         return { ok: false, error: "That slot is no longer available." };
@@ -680,9 +782,7 @@
     var result = updateAppointment(id, {
       date: nextDate,
       time: nextTime,
-      status: current.status === "cancelled" || current.status === "rejected"
-        ? "pending"
-        : current.status,
+      status: isClosedStatus(current.status) ? "pending" : current.status,
     });
     if (!result.ok) return result;
     markSlotBooked(nextDate, nextTime, id);
@@ -692,7 +792,7 @@
   function deleteAppointment(id) {
     var current = getAppointmentById(id);
     if (!current) return { ok: false, error: "Appointment not found." };
-    if (current.status !== "cancelled" && current.status !== "rejected") {
+    if (!isClosedStatus(current.status)) {
       releaseSlot(current.date, current.time);
     }
     saveAppointments(
@@ -701,6 +801,24 @@
       })
     );
     return { ok: true };
+  }
+
+  function markNoShow(id) {
+    var current = getAppointmentById(id);
+    if (!current) return { ok: false, error: "Appointment not found." };
+    var result = changeAppointmentStatus(id, "noshow");
+    if (!result.ok) return result;
+    var key = normalizePhone(current.phone);
+    var counts = Object.assign({}, getSettings().noShowCounts);
+    counts[key] = (Number(counts[key]) || 0) + 1;
+    updateSettings({ noShowCounts: counts });
+    if (counts[key] >= 2) blockPhone(key);
+    return {
+      ok: true,
+      appointment: getAppointmentById(id),
+      noShows: counts[key],
+      blocked: counts[key] >= 2,
+    };
   }
 
   /* ------------------------------------------------------------------ */
@@ -784,7 +902,7 @@
     }
     return {
       today: appointments.filter(function (item) {
-        return item.date === day && item.status !== "cancelled" && item.status !== "rejected";
+        return item.date === day && item.status !== "cancelled" && item.status !== "rejected" && item.status !== "noshow";
       }).length,
       pending: count("pending"),
       confirmed: count("confirmed"),
@@ -890,6 +1008,7 @@
     ];
 
     samples.forEach(function (sample) {
+      sample.internal = true;
       createAppointment(sample);
     });
 
@@ -945,5 +1064,13 @@
     minutesToTime: minutesToTime,
     normalizeTime: normalizeTime,
     resetDemoData: resetDemoData,
+    normalizePhone: normalizePhone,
+    isPhoneBlocked: isPhoneBlocked,
+    blockPhone: blockPhone,
+    unblockPhone: unblockPhone,
+    bookingGuard: bookingGuard,
+    markPhoneVerified: markPhoneVerified,
+    isPhoneVerified: isPhoneVerified,
+    markNoShow: markNoShow,
   };
 })(window);

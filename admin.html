@@ -100,6 +100,7 @@
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>
                 <option value="rejected">Rejected</option>
+                <option value="noshow">No-show</option>
               </select>
             </div>
           </div>
@@ -230,14 +231,19 @@
             <form id="emailForm" class="password-panel">
               <h3>Gmail SMTP</h3>
               <p class="muted" id="smtpStatus">Checking mail server…</p>
-              <p class="muted" id="smtpHelp">Enter the clinic Gmail and 16-character App Password, then Save. New bookings are emailed through smtp.gmail.com.</p>
+              <p class="muted" id="smtpHelp">Gmail will reject your normal password. Use a 16-character App Password.</p>
+              <ol class="smtp-steps">
+                <li>Open the clinic Google account and turn on <a href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noopener">2-Step Verification</a>.</li>
+                <li>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App passwords</a>, choose Mail / Other, name it <strong>Elegancia</strong>, and create.</li>
+                <li>Paste the 16 letters below (spaces are fine). Click Save, then Send test email.</li>
+              </ol>
               <div class="settings-grid" id="smtpLocalFields">
                 <div class="field">
                   <label for="setNotifyEmail">Gmail address</label>
                   <input id="setNotifyEmail" type="email" placeholder="yourclinic@gmail.com" autocomplete="username" />
                 </div>
                 <div class="field">
-                  <label for="setAppPassword">App Password</label>
+                  <label for="setAppPassword">App Password — not your Gmail password</label>
                   <input id="setAppPassword" type="password" placeholder="xxxx xxxx xxxx xxxx" autocomplete="new-password" />
                 </div>
               </div>
@@ -246,6 +252,16 @@
                 <button class="btn btn-outline" id="testEmailBtn" type="button">Send test email</button>
               </div>
             </form>
+
+            <div class="password-panel">
+              <h3>Blocked numbers</h3>
+              <p class="muted">Stop time-wasters. After two no-shows a number is blocked automatically. You can also block one by hand.</p>
+              <div id="blockedList" class="slot-admin-grid"></div>
+              <div class="toolbar" style="margin-top:12px">
+                <input class="text-input" id="blockPhoneInput" type="tel" placeholder="10-digit phone" />
+                <button class="btn btn-primary" id="blockPhoneBtn" type="button">Block number</button>
+              </div>
+            </div>
 
             <form id="passwordForm" class="password-panel">
               <h3>Change password</h3>
@@ -355,10 +371,10 @@
 
   <div class="toast-stack" id="toastStack"></div>
 
-  <script src="js/storage.js?v=5"></script>
-  <script src="js/auth.js?v=5"></script>
-  <script src="js/mailer.js?v=5"></script>
-  <script src="js/calendar.js?v=5"></script>
-  <script src="js/admin.js?v=5"></script>
+  <script src="js/storage.js?v=11"></script>
+  <script src="js/auth.js?v=11"></script>
+  <script src="js/mailer.js?v=11"></script>
+  <script src="js/calendar.js?v=11"></script>
+  <script src="js/admin.js?v=11"></script>
 </body>
 </html>

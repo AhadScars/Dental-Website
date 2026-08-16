@@ -58,6 +58,7 @@
   }
 
   function capitalize(value) {
+    if (value === "noshow") return "No-show";
     return String(value).charAt(0).toUpperCase() + String(value).slice(1);
   }
 
@@ -183,12 +184,16 @@
     }
     if (item.status === "confirmed") {
       html += '<button class="mini-btn complete" data-action="complete" data-id="' + item.id + '">Complete</button>';
+      html += '<button class="mini-btn danger" data-action="noshow" data-id="' + item.id + '">No-show</button>';
     }
-    if (item.status !== "completed") {
+    if (item.status !== "completed" && item.status !== "noshow") {
       html += '<button class="mini-btn" data-action="reschedule" data-id="' + item.id + '">Reschedule</button>';
     }
-    if (item.status !== "cancelled" && item.status !== "rejected" && item.status !== "completed") {
+    if (item.status !== "cancelled" && item.status !== "rejected" && item.status !== "completed" && item.status !== "noshow") {
       html += '<button class="mini-btn danger" data-action="cancel" data-id="' + item.id + '">Cancel</button>';
+    }
+    if (item.phone) {
+      html += '<button class="mini-btn danger" data-action="block" data-id="' + item.id + '">Block number</button>';
     }
     html += '<button class="mini-btn danger" data-action="delete" data-id="' + item.id + '">Delete</button>';
     return html;
@@ -276,20 +281,51 @@
       .join("");
   }
 
+  function notifyPatient(action, appointment) {
+    if (!appointment || !window.CosmicMail || !CosmicMail.notifyPatientStatus) return;
+    if (!appointment.email) {
+      toast("Updated, but this booking has no email to notify.", "error");
+      return;
+    }
+    CosmicMail.notifyPatientStatus(action, appointment).then(function (mail) {
+      if (mail.ok) toast("Patient emailed at " + (mail.to || appointment.email) + ".");
+      else toast(mail.error || "Updated, but the patient email failed.", "error");
+    });
+  }
+
   function handleAction(action, id) {
     var result;
     if (action === "confirm") {
       result = CosmicDB.changeAppointmentStatus(id, "confirmed");
-      if (result.ok) toast("Appointment confirmed successfully.");
+      if (result.ok) {
+        toast("Appointment confirmed successfully.");
+        notifyPatient("confirmed", result.appointment);
+      }
     } else if (action === "reject") {
       result = CosmicDB.changeAppointmentStatus(id, "rejected");
-      if (result.ok) toast("Appointment rejected.");
+      if (result.ok) {
+        toast("Appointment rejected.");
+        notifyPatient("rejected", result.appointment);
+      }
     } else if (action === "complete") {
       result = CosmicDB.changeAppointmentStatus(id, "completed");
       if (result.ok) toast("Appointment marked completed.");
     } else if (action === "cancel") {
       result = CosmicDB.changeAppointmentStatus(id, "cancelled");
       if (result.ok) toast("Appointment cancelled.");
+    } else if (action === "noshow") {
+      result = CosmicDB.markNoShow(id);
+      if (result.ok) {
+        toast(
+          result.blocked
+            ? "Marked no-show. This number is now blocked from online booking."
+            : "Marked no-show. Two no-shows will block this number."
+        );
+      }
+    } else if (action === "block") {
+      var appt = CosmicDB.getAppointmentById(id);
+      result = appt ? CosmicDB.blockPhone(appt.phone) : { ok: false, error: "Appointment not found." };
+      if (result.ok) toast("This number can no longer book online.");
     } else if (action === "delete") {
       pendingDeleteId = id;
       openModal("deleteModal");
@@ -494,7 +530,7 @@
       var help = $("smtpHelp");
       if (help) {
         help.textContent =
-          "Enter the clinic Gmail and 16-character App Password, then Save. This stores the password on the server so visitor bookings can send email. On Vercel, also set GMAIL_USER and GMAIL_APP_PASSWORD in Project Settings.";
+          "Gmail will reject your normal password. Turn on 2-Step Verification, open myaccount.google.com/apppasswords, create an App Password named Elegancia, and paste the 16 letters here. On Vercel also set GMAIL_USER and GMAIL_APP_PASSWORD.";
       }
       if (status.configured) {
         box.textContent = "Gmail SMTP is ready · smtp.gmail.com:465 · " + (status.email || "saved");
@@ -519,6 +555,32 @@
     $("setNotifyEmail").value = settings.adminNotifyEmail || "";
     $("setAppPassword").value = "";
     refreshSmtpStatus();
+    renderBlockedList();
+  }
+
+  function renderBlockedList() {
+    var box = $("blockedList");
+    if (!box) return;
+    var phones = CosmicDB.getSettings().blockedPhones || [];
+    var counts = CosmicDB.getSettings().noShowCounts || {};
+    if (!phones.length) {
+      box.innerHTML = '<p class="muted">No numbers are blocked.</p>';
+      return;
+    }
+    box.innerHTML = phones
+      .map(function (phone) {
+        var noshows = Number(counts[phone]) || 0;
+        return (
+          '<div class="slot-admin-row"><strong>' +
+          escapeHtml(phone) +
+          "</strong><span class='muted'>" +
+          (noshows ? noshows + " no-show" + (noshows === 1 ? "" : "s") : "Blocked by staff") +
+          '</span><button class="mini-btn" data-unblock="' +
+          escapeHtml(phone) +
+          '" type="button">Unblock</button></div>'
+        );
+      })
+      .join("");
   }
 
   /* ------------------------------------------------------------------ */
@@ -734,6 +796,7 @@
       }
       closeModals();
       toast("Appointment rescheduled.");
+      notifyPatient("rescheduled", result.appointment);
       refreshCurrent();
     });
 
@@ -790,9 +853,13 @@
     $("emailForm").addEventListener("submit", function (event) {
       event.preventDefault();
       var email = $("setNotifyEmail").value.trim();
-      var password = $("setAppPassword").value.trim();
+      var password = $("setAppPassword").value.replace(/[\s\u00a0"']+/g, "");
       if (!email || email.indexOf("@") === -1) {
         toast("Enter the clinic Gmail address.", "error");
+        return;
+      }
+      if (password && !/^[a-zA-Z0-9]{16}$/.test(password)) {
+        toast("Paste the 16-character App Password from Google, not your normal Gmail password.", "error");
         return;
       }
       if (!password && !((CosmicDB.getSettings().smtpAppPassword) || "")) {
@@ -863,6 +930,24 @@
       CosmicDB.resetDemoData();
       toast("Demo data restored.");
       refreshCurrent();
+    });
+
+    $("blockPhoneBtn").addEventListener("click", function () {
+      var result = CosmicDB.blockPhone($("blockPhoneInput").value);
+      if (!result.ok) {
+        toast(result.error || "Could not block that number.", "error");
+        return;
+      }
+      $("blockPhoneInput").value = "";
+      toast("Number blocked from online booking.");
+      renderBlockedList();
+    });
+    $("blockedList").addEventListener("click", function (event) {
+      var btn = event.target.closest("[data-unblock]");
+      if (!btn) return;
+      CosmicDB.unblockPhone(btn.getAttribute("data-unblock"));
+      toast("Number can book online again.");
+      renderBlockedList();
     });
 
     CosmicCalendar.bind();
