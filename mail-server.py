@@ -313,13 +313,14 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
-        if path == "/api/smtp-status":
+        if path in ("/api/smtp-status", "/api/mail", "/api/health", "/api"):
             cfg = load_config()
             self._json(
                 200,
                 {
                     "ok": True,
                     "running": True,
+                    "service": "elegancia-mail",
                     "configured": configured(cfg),
                     "email": cfg.get("email") or "",
                     "host": SMTP_HOST,
@@ -340,6 +341,30 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             self._json(400, {"ok": False, "error": "Invalid JSON."})
             return
+
+        route = (data.get("route") or "").lower()
+        if path in ("/api/mail", "/api"):
+            if route == "otp":
+                path = "/api/booking-otp"
+            elif route == "patient":
+                path = "/api/notify-patient"
+                data["kind"] = "patient-status"
+            elif route == "notify":
+                path = "/api/notify-appointment"
+            elif route == "smtp-config":
+                path = "/api/smtp-config"
+            elif route == "status":
+                cfg = load_config()
+                self._json(
+                    200,
+                    {
+                        "ok": True,
+                        "running": True,
+                        "configured": configured(cfg),
+                        "email": cfg.get("email") or "",
+                    },
+                )
+                return
 
         if path == "/api/smtp-config":
             email = (data.get("email") or "").strip()

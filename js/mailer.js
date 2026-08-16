@@ -13,27 +13,48 @@
     };
   }
 
-  function request(path, options) {
-    return fetch(path, options).then(function (res) {
+  function parseResponse(res, text) {
+    var body = null;
+    try {
+      body = text ? JSON.parse(text) : {};
+    } catch (err) {
+      var hint;
+      if (res.status === 404) {
+        hint = "NOT_FOUND";
+      } else if (res.status === 502 || res.status === 504) {
+        hint = "Vercel timed out reaching Gmail. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel → Settings → Environment Variables, then redeploy.";
+      } else {
+        hint = "Mail API failed (HTTP " + res.status + "). On Vercel set GMAIL_USER and GMAIL_APP_PASSWORD, then redeploy.";
+      }
+      throw new Error(hint);
+    }
+    if (!res.ok) {
+      throw new Error((body && body.error) || "Mail API error " + res.status);
+    }
+    return body;
+  }
+
+  function postJson(path, payload) {
+    return fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload || {}),
+    }).then(function (res) {
       return res.text().then(function (text) {
-        var body = null;
-        try {
-          body = text ? JSON.parse(text) : {};
-        } catch (err) {
-          var hint;
-          if (res.status === 404) {
-            hint = "Mail API was not found on Vercel. Redeploy from the project root (the folder that contains api/, package.json, and vercel.json). Then open /api/health to confirm.";
-          } else if (res.status === 502 || res.status === 504) {
-            hint = "Vercel timed out reaching Gmail. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel → Settings → Environment Variables, then redeploy.";
-          } else {
-            hint = "Mail API failed (HTTP " + res.status + "). On Vercel set GMAIL_USER and GMAIL_APP_PASSWORD, then redeploy.";
-          }
-          throw new Error(hint);
-        }
-        if (!res.ok) {
-          throw new Error((body && body.error) || "Mail API error " + res.status);
-        }
-        return body;
+        return parseResponse(res, text);
+      });
+    });
+  }
+
+  function requestMail(route, payload) {
+    var data = Object.assign({ route: route }, payload || {});
+    return postJson("/api/mail", data).catch(function (err) {
+      if (!err || err.message !== "NOT_FOUND") throw err;
+      return postJson("/api", data).catch(function (err2) {
+        if (!err2 || err2.message !== "NOT_FOUND") throw err2;
+        throw new Error(
+          "Mail API was not found on Vercel. Redeploy the folder that contains api/mail.js and package.json. Then open /api/mail in the browser — it should show JSON, not a 404 page."
+        );
       });
     });
   }
@@ -44,19 +65,15 @@
       if (appPassword) next.smtpAppPassword = String(appPassword).replace(/[\s\u00a0"']+/g, "");
       CosmicDB.updateSettings(next);
     }
-    return request("/api/smtp-config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: String(email || "").trim(),
-        appPassword: String(appPassword || "").replace(/[\s\u00a0"']+/g, ""),
-      }),
+    return requestMail("smtp-config", {
+      email: String(email || "").trim(),
+      appPassword: String(appPassword || "").replace(/[\s\u00a0"']+/g, ""),
     });
   }
 
   function getStatus() {
     var local = settingsSmtp();
-    return request("/api/smtp-status")
+    return requestMail("status", {})
       .then(function (status) {
         status.running = true;
         status.configured = !!(status.configured || (local.email && local.appPassword));
@@ -75,10 +92,7 @@
 
   function sendBookingEmail(appointment) {
     var smtp = settingsSmtp();
-    return request("/api/notify-appointment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    return requestMail("notify", {
         id: appointment.id,
         booking_id: appointment.id,
         patientName: appointment.patientName,
@@ -99,7 +113,6 @@
           (appointment.date || "") +
           " " +
           (appointment.time || ""),
-      }),
     })
       .then(function () {
         return { ok: true };
@@ -118,10 +131,7 @@
     if (!email || email.indexOf("@") === -1) {
       return Promise.resolve({ ok: false, error: "This booking has no patient email." });
     }
-    return request("/api/notify-appointment", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    return requestMail("patient", {
         kind: "patient-status",
         action: action,
         id: appointment.id,
@@ -137,7 +147,6 @@
         status: appointment.status || action,
         smtpUser: smtp.email,
         smtpPass: smtp.appPassword,
-      }),
     })
       .then(function (body) {
         var sentTo = (body && body.to) || email;
@@ -156,10 +165,7 @@
 
   function requestOtp(details) {
     var smtp = settingsSmtp();
-    return request("/api/booking-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    return requestMail("otp", {
         action: "send",
         patientName: details.patientName,
         phone: details.phone,
@@ -169,7 +175,6 @@
         time: details.time,
         smtpUser: smtp.email,
         smtpPass: smtp.appPassword,
-      }),
     })
       .then(function (body) {
         return { ok: true, challenge: body.challenge };
@@ -180,16 +185,12 @@
   }
 
   function verifyOtp(details) {
-    return request("/api/booking-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    return requestMail("otp", {
         action: "verify",
         email: details.email,
         phone: details.phone,
         code: details.code,
         challenge: details.challenge,
-      }),
     })
       .then(function () {
         if (window.CosmicDB) CosmicDB.markPhoneVerified(details.phone, details.email);
