@@ -2,6 +2,9 @@
   "name": "elegancia-dental",
   "private": true,
   "description": "Elegancia Dental clinic site for Vercel",
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
     "nodemailer": "^6.10.1"
   }

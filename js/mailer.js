@@ -15,17 +15,26 @@
 
   function request(path, options) {
     return fetch(path, options).then(function (res) {
-      return res
-        .json()
-        .catch(function () {
-          return { ok: false, error: "Mail API returned an invalid response." };
-        })
-        .then(function (body) {
-          if (!res.ok) {
-            throw new Error((body && body.error) || "Mail API error " + res.status);
+      return res.text().then(function (text) {
+        var body = null;
+        try {
+          body = text ? JSON.parse(text) : {};
+        } catch (err) {
+          var hint;
+          if (res.status === 404) {
+            hint = "Mail API was not found on Vercel. Redeploy the project so the /api folder is included.";
+          } else if (res.status === 502 || res.status === 504) {
+            hint = "Vercel timed out reaching Gmail. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel → Settings → Environment Variables, then redeploy.";
+          } else {
+            hint = "Mail API failed (HTTP " + res.status + "). On Vercel set GMAIL_USER and GMAIL_APP_PASSWORD, then redeploy.";
           }
-          return body;
-        });
+          throw new Error(hint);
+        }
+        if (!res.ok) {
+          throw new Error((body && body.error) || "Mail API error " + res.status);
+        }
+        return body;
+      });
     });
   }
 
