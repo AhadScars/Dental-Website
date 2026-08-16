@@ -22,7 +22,7 @@
         } catch (err) {
           var hint;
           if (res.status === 404) {
-            hint = "Mail API was not found on Vercel. Redeploy the project so the /api folder is included.";
+            hint = "Mail API was not found on Vercel. Redeploy from the project root (the folder that contains api/, package.json, and vercel.json). Then open /api/health to confirm.";
           } else if (res.status === 502 || res.status === 504) {
             hint = "Vercel timed out reaching Gmail. Add GMAIL_USER and GMAIL_APP_PASSWORD in Vercel → Settings → Environment Variables, then redeploy.";
           } else {
