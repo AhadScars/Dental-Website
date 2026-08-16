@@ -11,6 +11,7 @@ const {
   loadFileConfig,
   saveFileConfig,
 } = require("../lib/mail");
+const appointmentsStore = require("../lib/appointments-store");
 
 function makeCode() {
   return String(100000 + Math.floor(Math.random() * 900000));
@@ -73,6 +74,24 @@ async function handleNotify(data, res) {
   if (isPatientStatus || data.route === "patient") {
     data.kind = "patient-status";
     data.to = patientTo || data.email;
+    if (data.id) {
+      try {
+        await appointmentsStore.upsertAppointment({
+          id: data.id,
+          patientName: data.patientName,
+          phone: data.phone,
+          email: data.email || data.to,
+          treatmentName: data.treatmentName,
+          date: data.date,
+          time: data.time,
+          doctor: data.doctor,
+          status: data.status || data.action || "pending",
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        /* status email still goes out */
+      }
+    }
     const result = await sendPatientStatusEmail(data);
     return res.status(200).json({
       ok: true,
@@ -81,6 +100,26 @@ async function handleNotify(data, res) {
     });
   }
 
+  if (data.id && data.patientName) {
+    try {
+      await appointmentsStore.upsertAppointment({
+        id: data.id,
+        patientName: data.patientName,
+        phone: data.phone,
+        email: data.email,
+        message: data.message,
+        treatmentName: data.treatmentName,
+        date: data.date,
+        time: data.time,
+        doctor: data.doctor,
+        status: data.status || "pending",
+        createdAt: data.createdAt,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch (err) {
+      /* booking email still goes out even if the shared store is not configured */
+    }
+  }
   await sendAppointmentEmail(data);
   return res.status(200).json({ ok: true, kind: "clinic" });
 }
@@ -130,6 +169,15 @@ module.exports = async function handler(req, res) {
 
     const pathname = pathName(req);
     if (req.method === "GET") {
+      const url = new URL(req.url || "/", "http://localhost");
+      if (url.searchParams.get("list") === "appointments") {
+        const list = await appointmentsStore.listAppointments();
+        return res.status(200).json({
+          ok: true,
+          appointments: list,
+          store: appointmentsStore.storeKind(),
+        });
+      }
       return res.status(200).json({
         ok: true,
         service: "elegancia-mail",
@@ -137,6 +185,8 @@ module.exports = async function handler(req, res) {
         vercel: Boolean(process.env.VERCEL),
         hasGmailUser: Boolean(process.env.GMAIL_USER || process.env.SMTP_USER),
         hasGmailPass: Boolean(process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS),
+        store: appointmentsStore.storeKind(),
+        hasStore: appointmentsStore.hasGithubToken() || appointmentsStore.hasUpstash() || !process.env.VERCEL,
       });
     }
 
@@ -146,6 +196,19 @@ module.exports = async function handler(req, res) {
 
     const data = await readBody(req);
     const route = String(data.route || "").toLowerCase();
+
+    if (route === "appointments") {
+      const op = String(data.op || "list").toLowerCase();
+      if (op === "list") {
+        const list = await appointmentsStore.listAppointments();
+        return res.status(200).json({ ok: true, appointments: list, store: appointmentsStore.storeKind() });
+      }
+      if (op === "create" || op === "update" || op === "upsert") {
+        const saved = await appointmentsStore.upsertAppointment(data.appointment || data);
+        return res.status(200).json({ ok: true, appointment: saved, store: appointmentsStore.storeKind() });
+      }
+      return res.status(400).json({ ok: false, error: "Unknown appointments operation." });
+    }
 
     if (route === "otp" || pathname.indexOf("booking-otp") !== -1) {
       return handleOtp(data, res);

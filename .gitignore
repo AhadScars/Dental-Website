@@ -1,4 +1,5 @@
 smtp-config.json
+data/appointments.json
 node_modules/
 .env
 .vercel

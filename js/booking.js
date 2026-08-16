@@ -458,6 +458,10 @@
       showConfirmation(result.appointment);
       toast("Appointment requested successfully.");
 
+      CosmicDB.pushServerAppointment(result.appointment).then(function (sync) {
+        if (!sync.ok) toast(sync.error || "Booked, but the clinic dashboard did not sync yet.", "error");
+      });
+
       CosmicMail.sendBookingEmail(result.appointment).then(function (mail) {
         if (mail.ok) toast("Notification sent to the clinic Gmail.");
         else toast(mail.error || "Booked, but the Gmail notification failed.", "error");
@@ -467,6 +471,9 @@
 
   document.getElementById("bookAnother").addEventListener("click", resetBooking);
 
+  CosmicDB.pullServerAppointments().then(function () {
+    renderSlots(dateInput.value);
+  });
   renderTreatmentChoices();
   initDatePicker();
 

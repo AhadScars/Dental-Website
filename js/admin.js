@@ -335,6 +335,9 @@
       return;
     }
     if (result && !result.ok) toast(result.error || "Unable to update appointment.", "error");
+    if (result && result.ok && result.appointment) {
+      CosmicDB.pushServerAppointment(result.appointment);
+    }
     refreshCurrent();
   }
 
@@ -796,6 +799,7 @@
       }
       closeModals();
       toast("Appointment rescheduled.");
+      CosmicDB.pushServerAppointment(result.appointment);
       notifyPatient("rescheduled", result.appointment);
       refreshCurrent();
     });
@@ -951,7 +955,10 @@
     });
 
     CosmicCalendar.bind();
-    showView("dashboard");
+    CosmicDB.pullServerAppointments().then(function (sync) {
+      showView("dashboard");
+      if (sync && sync.ok) toast("Dashboard synced with online bookings.");
+    });
   }
 
   bind();

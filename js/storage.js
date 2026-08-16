@@ -1024,6 +1024,68 @@
     seedIfNeeded();
   }
 
+  function mergeAppointments(remote) {
+    var local = getAppointments();
+    var map = {};
+    local.forEach(function (item) {
+      if (item && item.id) map[item.id] = item;
+    });
+    (remote || []).forEach(function (item) {
+      if (!item || !item.id) return;
+      var current = map[item.id];
+      if (!current || String(item.updatedAt || "") >= String(current.updatedAt || "")) {
+        map[item.id] = item;
+      }
+    });
+    var next = Object.keys(map).map(function (key) {
+      return map[key];
+    });
+    saveAppointments(next);
+    next.forEach(function (item) {
+      if (!isClosedStatus(item.status)) {
+        markSlotBooked(item.date, item.time, item.id);
+      }
+    });
+    return next;
+  }
+
+  function pullServerAppointments() {
+    return fetch("/api/mail?list=appointments")
+      .then(function (res) {
+        return res.json().catch(function () {
+          return { ok: false };
+        });
+      })
+      .then(function (body) {
+        if (!body || !body.ok || !Array.isArray(body.appointments)) {
+          return { ok: false, appointments: getAppointments() };
+        }
+        return { ok: true, appointments: mergeAppointments(body.appointments), store: body.store };
+      })
+      .catch(function () {
+        return { ok: false, appointments: getAppointments() };
+      });
+  }
+
+  function pushServerAppointment(appointment) {
+    if (!appointment || !appointment.id) {
+      return Promise.resolve({ ok: false, error: "Missing appointment." });
+    }
+    return fetch("/api/mail", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ route: "appointments", op: "upsert", appointment: appointment }),
+    })
+      .then(function (res) {
+        return res.json().catch(function () {
+          return { ok: false, error: "Could not sync this booking to the clinic dashboard." };
+        });
+      })
+      .catch(function () {
+        return { ok: false, error: "Could not sync this booking to the clinic dashboard." };
+      });
+  }
+
   seedIfNeeded();
 
   global.CosmicDB = {
@@ -1064,6 +1126,9 @@
     minutesToTime: minutesToTime,
     normalizeTime: normalizeTime,
     resetDemoData: resetDemoData,
+    pullServerAppointments: pullServerAppointments,
+    pushServerAppointment: pushServerAppointment,
+    mergeAppointments: mergeAppointments,
     normalizePhone: normalizePhone,
     isPhoneBlocked: isPhoneBlocked,
     blockPhone: blockPhone,
