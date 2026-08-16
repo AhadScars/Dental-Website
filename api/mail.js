@@ -11,7 +11,10 @@ const {
   loadFileConfig,
   saveFileConfig,
 } = require("../lib/mail");
+<<<<<<< HEAD
 const appointmentsStore = require("../lib/appointments-store");
+=======
+>>>>>>> f1fba69ec82e7de7b79b36f2d6ebb96d3a9704e1
 
 function makeCode() {
   return String(100000 + Math.floor(Math.random() * 900000));
@@ -74,6 +77,7 @@ async function handleNotify(data, res) {
   if (isPatientStatus || data.route === "patient") {
     data.kind = "patient-status";
     data.to = patientTo || data.email;
+<<<<<<< HEAD
     if (data.id) {
       try {
         await appointmentsStore.upsertAppointment({
@@ -92,6 +96,8 @@ async function handleNotify(data, res) {
         /* status email still goes out */
       }
     }
+=======
+>>>>>>> f1fba69ec82e7de7b79b36f2d6ebb96d3a9704e1
     const result = await sendPatientStatusEmail(data);
     return res.status(200).json({
       ok: true,
@@ -100,6 +106,7 @@ async function handleNotify(data, res) {
     });
   }
 
+<<<<<<< HEAD
   if (data.id && data.patientName) {
     try {
       await appointmentsStore.upsertAppointment({
@@ -120,6 +127,8 @@ async function handleNotify(data, res) {
       /* booking email still goes out even if the shared store is not configured */
     }
   }
+=======
+>>>>>>> f1fba69ec82e7de7b79b36f2d6ebb96d3a9704e1
   await sendAppointmentEmail(data);
   return res.status(200).json({ ok: true, kind: "clinic" });
 }
@@ -169,6 +178,7 @@ module.exports = async function handler(req, res) {
 
     const pathname = pathName(req);
     if (req.method === "GET") {
+<<<<<<< HEAD
       const url = new URL(req.url || "/", "http://localhost");
       if (url.searchParams.get("list") === "appointments") {
         const list = await appointmentsStore.listAppointments();
@@ -178,6 +188,8 @@ module.exports = async function handler(req, res) {
           store: appointmentsStore.storeKind(),
         });
       }
+=======
+>>>>>>> f1fba69ec82e7de7b79b36f2d6ebb96d3a9704e1
       return res.status(200).json({
         ok: true,
         service: "elegancia-mail",
@@ -185,8 +197,11 @@ module.exports = async function handler(req, res) {
         vercel: Boolean(process.env.VERCEL),
         hasGmailUser: Boolean(process.env.GMAIL_USER || process.env.SMTP_USER),
         hasGmailPass: Boolean(process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS),
+<<<<<<< HEAD
         store: appointmentsStore.storeKind(),
         hasStore: appointmentsStore.hasGithubToken() || appointmentsStore.hasUpstash() || !process.env.VERCEL,
+=======
+>>>>>>> f1fba69ec82e7de7b79b36f2d6ebb96d3a9704e1
       });
     }
 
@@ -197,6 +212,7 @@ module.exports = async function handler(req, res) {
     const data = await readBody(req);
     const route = String(data.route || "").toLowerCase();
 
+<<<<<<< HEAD
     if (route === "appointments") {
       const op = String(data.op || "list").toLowerCase();
       if (op === "list") {
@@ -210,6 +226,8 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Unknown appointments operation." });
     }
 
+=======
+>>>>>>> f1fba69ec82e7de7b79b36f2d6ebb96d3a9704e1
     if (route === "otp" || pathname.indexOf("booking-otp") !== -1) {
       return handleOtp(data, res);
     }
